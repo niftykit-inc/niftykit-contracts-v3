@@ -1,10 +1,10 @@
 # NiftyKitV3
 
+[Request for Audit Doc](https://niftykit.notion.site/NiftyKit-V7-Request-for-Audit-0c4ed3eea24a4a1cbab2b767b9c3fe22)
+
+
 ## Architecture
 
-![niftykitv7-arch.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/ecce53c9-04b9-4547-afbb-a1bb9aed2393/niftykitv7-arch.png)
-
-Underlined - written by us
 
 - **core**
     - NiftyKitV3.sol
