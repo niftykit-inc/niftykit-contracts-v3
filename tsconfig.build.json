@@ -1,0 +1,6 @@
+{
+    "extends": "./tsconfig.json",
+    "include": ["typechain-types"],
+    "exclude": ["node_modules", "test", "dist", "scripts", "deploy", "hardhat.config.ts", "**/*spec.ts"],
+    "files": []
+  }
