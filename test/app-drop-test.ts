@@ -89,6 +89,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -120,6 +123,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -171,6 +177,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -241,6 +250,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -349,6 +361,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -415,6 +430,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -478,6 +496,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -541,6 +562,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -604,6 +628,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -680,6 +707,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -719,6 +749,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -795,6 +828,9 @@ describe("DropFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]

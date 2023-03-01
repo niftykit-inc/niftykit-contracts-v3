@@ -80,6 +80,9 @@ describe("NiftyKitV3", function () {
         collectionId,
         feeRate,
         signature,
+        await accounts[0].getAddress(),
+        await accounts[0].getAddress(),
+        500,
         "NAME",
         "SYMBOL",
         []
@@ -133,6 +136,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       []
@@ -174,6 +180,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       []
@@ -206,6 +215,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       []
@@ -268,6 +280,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       []
@@ -324,6 +339,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -375,6 +393,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop"), ethers.utils.id("example")]
@@ -423,6 +444,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       []
@@ -492,6 +516,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       []
@@ -504,6 +531,9 @@ describe("NiftyKitV3", function () {
         collectionId,
         feeRate,
         signature,
+        await accounts[0].getAddress(),
+        await accounts[0].getAddress(),
+        500,
         "NAME",
         "SYMBOL",
         []
@@ -527,6 +557,9 @@ describe("NiftyKitV3", function () {
         collectionId,
         feeRate,
         signature,
+        await accounts[0].getAddress(),
+        await accounts[0].getAddress(),
+        500,
         "NAME",
         "SYMBOL",
         []
@@ -548,6 +581,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       []
@@ -616,6 +652,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -641,6 +680,9 @@ describe("NiftyKitV3", function () {
       newCollectionId,
       feeRate,
       newSignature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]
@@ -666,6 +708,9 @@ describe("NiftyKitV3", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("drop")]

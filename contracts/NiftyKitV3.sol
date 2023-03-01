@@ -93,29 +93,40 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
     }
 
     function createDiamond(
-        string memory collectionId,
-        uint96 feeRate,
-        bytes calldata signature,
-        string memory name,
-        string memory symbol,
-        bytes32[] calldata apps
+        string memory collectionId_,
+        uint96 feeRate_,
+        bytes calldata signature_,
+        address treasury_,
+        address royalty_,
+        uint96 royaltyFee_,
+        string memory name_,
+        string memory symbol_,
+        bytes32[] calldata apps_
     ) external {
         require(_signer != address(0), "Signer not set");
-        require(!_verifiedCollections[collectionId], "Already created");
+        require(!_verifiedCollections[collectionId_], "Already created");
         require(
-            keccak256(abi.encodePacked(collectionId, feeRate))
+            keccak256(abi.encodePacked(collectionId_, feeRate_))
                 .toEthSignedMessageHash()
-                .recover(signature) == _signer,
+                .recover(signature_) == _signer,
             "Invalid signature"
         );
         address deployed = ClonesUpgradeable.clone(_diamondImplementation);
         IDiamondCollection collection = IDiamondCollection(deployed);
-        collection.initialize(_msgSender(), name, symbol, apps);
+        collection.initialize(
+            _msgSender(),
+            treasury_,
+            royalty_,
+            royaltyFee_,
+            name_,
+            symbol_,
+            apps_
+        );
 
-        _collections[deployed] = Collection(feeRate, true);
-        _verifiedCollections[collectionId] = true;
+        _collections[deployed] = Collection(feeRate_, true);
+        _verifiedCollections[collectionId_] = true;
 
-        emit DiamondCreated(deployed, collectionId);
+        emit DiamondCreated(deployed, collectionId_);
     }
 
     receive() external payable {}

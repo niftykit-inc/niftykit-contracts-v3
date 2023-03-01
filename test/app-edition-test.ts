@@ -78,6 +78,9 @@ describe("EditionFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("edition")]
@@ -109,6 +112,9 @@ describe("EditionFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("edition")]
@@ -142,6 +148,9 @@ describe("EditionFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("edition")]
@@ -195,6 +204,9 @@ describe("EditionFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("edition")]
@@ -356,6 +368,9 @@ describe("EditionFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("edition")]
@@ -450,6 +465,9 @@ describe("EditionFacet", function () {
       collectionId,
       feeRate,
       signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
       "NAME",
       "SYMBOL",
       [ethers.utils.id("edition")]

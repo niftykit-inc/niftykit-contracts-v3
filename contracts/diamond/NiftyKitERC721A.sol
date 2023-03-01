@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 import {OwnableRoles} from "solady/src/auth/OwnableRoles.sol";
 import {ERC721AUpgradeable, IERC721AUpgradeable} from "erc721a-upgradeable/contracts/ERC721AUpgradeable.sol";
 import {ERC721AQueryableUpgradeable} from "erc721a-upgradeable/contracts/extensions/ERC721AQueryableUpgradeable.sol";
+import {ERC2981Upgradeable} from "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
 import {OperatorFilterer} from "closedsea/src/OperatorFilterer.sol";
 import {DiamondLoupeFacet} from "./DiamondLoupeFacet.sol";
 import {BaseStorage} from "./BaseStorage.sol";
@@ -11,6 +12,7 @@ import {BaseStorage} from "./BaseStorage.sol";
 contract NiftyKitERC721A is
     ERC721AUpgradeable,
     ERC721AQueryableUpgradeable,
+    ERC2981Upgradeable,
     OwnableRoles,
     OperatorFilterer
 {
@@ -33,10 +35,14 @@ contract NiftyKitERC721A is
 
     function _initializeERC721A(
         string calldata name,
-        string calldata symbol
+        string calldata symbol,
+        address royalty,
+        uint96 royaltyFee
     ) internal initializerERC721A {
         __ERC721A_init(name, symbol);
         __ERC721AQueryable_init();
+        __ERC2981_init();
+        _setDefaultRoyalty(royalty, royaltyFee);
     }
 
     function setBaseURI(
@@ -81,6 +87,21 @@ contract NiftyKitERC721A is
         bool isBlocked
     ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
         BaseStorage.layout()._blockedTokenIds[tokenId] = isBlocked;
+    }
+
+    function setDefaultRoyalty(
+        address receiver,
+        uint96 feeNumerator
+    ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
+        _setDefaultRoyalty(receiver, feeNumerator);
+    }
+
+    function setTokenRoyalty(
+        uint256 tokenId,
+        address receiver,
+        uint96 feeNumerator
+    ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
+        _setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
 
     function isAllowedOperator(address operator) external view returns (bool) {
@@ -228,9 +249,11 @@ contract NiftyKitERC721A is
         public
         view
         virtual
-        override(ERC721AUpgradeable, IERC721AUpgradeable)
+        override(ERC721AUpgradeable, IERC721AUpgradeable, ERC2981Upgradeable)
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        return
+            ERC721AUpgradeable.supportsInterface(interfaceId) ||
+            ERC2981Upgradeable.supportsInterface(interfaceId);
     }
 }

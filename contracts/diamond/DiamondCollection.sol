@@ -23,18 +23,21 @@ contract DiamondCollection is
     }
 
     function initialize(
-        address owner,
-        string calldata name,
-        string calldata symbol,
-        bytes32[] calldata apps
+        address owner_,
+        address treasury_,
+        address royalty_,
+        uint96 royaltyFee_,
+        string calldata name_,
+        string calldata symbol_,
+        bytes32[] calldata apps_
     ) external initializer {
         BaseStorage.Layout storage layout = BaseStorage.layout();
         layout._niftyKit = INiftyKitV3(msg.sender);
-        layout._treasury = owner;
-        _initializeERC721A(name, symbol);
-        _initializeOwner(owner);
-        if (apps.length > 0) {
-            _initializeApps(apps);
+        layout._treasury = treasury_;
+        _initializeERC721A(name_, symbol_, royalty_, royaltyFee_);
+        _initializeOwner(owner_);
+        if (apps_.length > 0) {
+            _initializeApps(apps_);
         }
     }
 
