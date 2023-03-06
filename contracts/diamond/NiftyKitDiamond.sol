@@ -19,8 +19,6 @@ abstract contract NiftyKitDiamond is
         return BaseStorage.layout()._apps[name];
     }
 
-
-
     function _installApp(
         bytes32 name,
         address init,

@@ -10,9 +10,8 @@
     "test": "npx hardhat test",
     "build": "tsc -p ./tsconfig.build.json",
     "coverage": "npx hardhat coverage",
-    "deploy:test": "npx hardhat deploy --tags NiftyKit",
-    "deploy:erc20:test": "npx hardhat deploy --tags ERC20",
     "deploy": "npx hardhat deploy --tags NiftyKit",
+    "deploy:erc20": "npx hardhat deploy --tags ERC20",
     "verify": "npx hardhat run scripts/verify.ts"
   },
   "devDependencies": {
@@ -36,6 +35,7 @@
     "erc721a-upgradeable": "^4.2.3",
     "ethers": "^5.7.2",
     "hardhat": "^2.12.6",
+    "hardhat-contract-sizer": "^2.8.0",
     "hardhat-deploy": "^0.11.23",
     "hardhat-gas-reporter": "^1.0.8",
     "prettier": "^2.6.2",

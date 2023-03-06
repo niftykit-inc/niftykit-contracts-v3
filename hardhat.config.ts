@@ -8,6 +8,7 @@ import "hardhat-gas-reporter";
 import "solidity-coverage";
 import "hardhat-deploy";
 import "@openzeppelin/hardhat-upgrades";
+import "hardhat-contract-sizer";
 
 dotenv.config();
 
@@ -32,6 +33,9 @@ const config: HardhatUserConfig = {
         enabled: true,
       },
     },
+  },
+  contractSizer: {
+    runOnCompile: true,
   },
   networks: {
     mainnet: {

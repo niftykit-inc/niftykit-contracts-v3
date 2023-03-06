@@ -10,6 +10,7 @@ import {ClonesUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/Clone
 import {IDiamondCollection} from "./interfaces/IDiamondCollection.sol";
 import {IDropKitPass} from "./interfaces/IDropKitPass.sol";
 import {INiftyKitV3} from "./interfaces/INiftyKitV3.sol";
+import {IERC173} from "./interfaces/IERC173.sol";
 
 contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
@@ -41,14 +42,25 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
     function commission(
         address collection,
         uint256 amount
-    ) public view override returns (uint256) {
+    ) public view override returns (uint256, uint256) {
         Collection memory _collection = _collections[collection];
         require(_collection.exists, "Invalid collection");
+        uint256 feeAmount = _collection.feeRate.mul(amount).div(10000);
 
-        return _collection.feeRate.mul(amount).div(10000);
+        if (_collection.feeType == FeeType.Seller) {
+            return (feeAmount, 0);
+        }
+
+        if (_collection.feeType == FeeType.Buyer) {
+            return (0, feeAmount);
+        }
+
+        return (feeAmount.div(2), feeAmount.div(2));
     }
 
-    function getFees(uint256 amount) external view override returns (uint256) {
+    function getFees(
+        uint256 amount
+    ) external view override returns (uint256, uint256) {
         return commission(_msgSender(), amount);
     }
 
@@ -92,6 +104,14 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         _collection.feeRate = rate;
     }
 
+    function setFeeType(address collection, FeeType feeType) external {
+        Collection storage _collection = _collections[collection];
+        require(_collection.exists, "Does not exist");
+        require(IERC173(collection).owner() == _msgSender(), "Not the owner");
+
+        _collection.feeType = feeType;
+    }
+
     function createDiamond(
         string memory collectionId_,
         uint96 feeRate_,
@@ -123,7 +143,7 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
             apps_
         );
 
-        _collections[deployed] = Collection(feeRate_, true);
+        _collections[deployed] = Collection(feeRate_, FeeType.Seller, true);
         _verifiedCollections[collectionId_] = true;
 
         emit DiamondCreated(deployed, collectionId_);

@@ -6,7 +6,6 @@ import {ERC721AUpgradeable, IERC721AUpgradeable} from "erc721a-upgradeable/contr
 import {ERC721AQueryableUpgradeable} from "erc721a-upgradeable/contracts/extensions/ERC721AQueryableUpgradeable.sol";
 import {ERC2981Upgradeable} from "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
 import {OperatorFilterer} from "closedsea/src/OperatorFilterer.sol";
-import {DiamondLoupeFacet} from "./DiamondLoupeFacet.sol";
 import {BaseStorage} from "./BaseStorage.sol";
 
 contract NiftyKitERC721A is

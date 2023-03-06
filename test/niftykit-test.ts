@@ -151,9 +151,11 @@ describe("NiftyKitV3", function () {
     expect(createdEvent).to.be.a("object");
 
     const diamondAddress = createdEvent.args[0];
-    expect(await niftyKitV3.commission(diamondAddress, 10000)).to.equal(
-      feeRate
+    const [sellerAmount, buyerAmount] = await niftyKitV3.commission(
+      diamondAddress,
+      10000
     );
+    expect(sellerAmount.add(buyerAmount)).to.equal(feeRate);
 
     await expect(
       niftyKitV3.commission(await accounts[0].getAddress(), 10000)
@@ -722,9 +724,12 @@ describe("NiftyKitV3", function () {
     expect(createdEvent).to.be.a("object");
     const diamondAddress = createdEvent.args[0];
 
-    expect(
-      (await niftyKitV3.commission(diamondAddress, 10000)).toNumber()
-    ).to.equal(feeRate);
+    const [sellerAmount, buyerAmount] = await niftyKitV3.commission(
+      diamondAddress,
+      10000
+    );
+
+    expect(sellerAmount.add(buyerAmount)).to.equal(feeRate);
 
     const newFeeRate = 1000;
 
@@ -734,8 +739,11 @@ describe("NiftyKitV3", function () {
     ).to.be.revertedWith("Does not exist");
 
     await niftyKitV3.setRate(diamondAddress, newFeeRate);
-    expect(
-      (await niftyKitV3.commission(diamondAddress, 10000)).toNumber()
-    ).to.equal(newFeeRate);
+
+    const [newSellerAmount, newBuyerAmount] = await niftyKitV3.commission(
+      diamondAddress,
+      10000
+    );
+    expect(newSellerAmount.add(newBuyerAmount)).to.equal(newFeeRate);
   });
 });

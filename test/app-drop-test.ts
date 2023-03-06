@@ -775,7 +775,7 @@ describe("DropFacet", function () {
     const txMint = await dropCollection
       .connect(accounts[1])
       .mintTo(await accounts[1].getAddress(), 1, {
-        value: salesParam[3],
+        value: await dropCollection.price(),
       });
     const txMintReceipt = await txMint.wait();
     const transferEvent = txMintReceipt.events?.find(
@@ -784,14 +784,14 @@ describe("DropFacet", function () {
 
     expect(transferEvent).to.be.a("object");
 
-    const commissionAmount = await niftyKitV3.commission(
+    const [sellerAmount, buyerAmount] = await niftyKitV3.commission(
       dropCollection.address,
       salesParam[3]
     );
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
-    ).to.be.eq(salesParam[3].sub(commissionAmount));
+    ).to.be.eq(salesParam[3].sub(sellerAmount.add(buyerAmount)));
 
     const diamondCollection = DiamondCollection__factory.connect(
       diamondAddress,
@@ -804,7 +804,175 @@ describe("DropFacet", function () {
     ).to.be.eq(0);
 
     expect(await niftyKitV3.provider.getBalance(niftyKitV3.address)).to.be.eq(
-      commissionAmount
+      sellerAmount.add(buyerAmount)
+    );
+
+    await niftyKitV3.withdraw();
+
+    expect(await niftyKitV3.provider.getBalance(niftyKitV3.address)).to.be.eq(
+      0
+    );
+  });
+
+  it("should be able to withdraw with buyer fees", async function () {
+    const collectionId = "COLLECTION_ID_11";
+    const signature = await signer.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ["string", "uint96"],
+          [collectionId, feeRate]
+        )
+      )
+    );
+    const createDiamondTx = await niftyKitV3.createDiamond(
+      collectionId,
+      feeRate,
+      signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
+      "NAME",
+      "SYMBOL",
+      [ethers.utils.id("drop")]
+    );
+    const createDiamondReceipt = await createDiamondTx.wait();
+    const createdEvent = createDiamondReceipt.events?.find(
+      (event) => event.event === "DiamondCreated"
+    ) as DiamondCreatedEvent;
+    const diamondAddress = createdEvent.args[0];
+    const dropCollection = DropFacet__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
+
+    // buyer pays fees
+    await niftyKitV3.setFeeType(diamondAddress, 1);
+
+    expect(await dropCollection.saleActive()).to.be.false;
+
+    await dropCollection.startSale(...salesParam, false);
+
+    expect(await dropCollection.saleActive()).to.be.true;
+
+    const txMint = await dropCollection
+      .connect(accounts[1])
+      .mintTo(await accounts[1].getAddress(), 1, {
+        value: await dropCollection.price(),
+      });
+    const txMintReceipt = await txMint.wait();
+    const transferEvent = txMintReceipt.events?.find(
+      (event) => event.event === "Transfer"
+    );
+
+    expect(transferEvent).to.be.a("object");
+
+    const [sellerAmount, buyerAmount] = await niftyKitV3.commission(
+      dropCollection.address,
+      salesParam[3]
+    );
+
+    expect(sellerAmount.toNumber()).to.equal(0);
+
+    expect(
+      await dropCollection.provider.getBalance(dropCollection.address)
+    ).to.be.eq(salesParam[3]);
+
+    const diamondCollection = DiamondCollection__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
+    await diamondCollection.withdraw();
+
+    expect(
+      await dropCollection.provider.getBalance(dropCollection.address)
+    ).to.be.eq(0);
+
+    expect(await niftyKitV3.provider.getBalance(niftyKitV3.address)).to.be.eq(
+      sellerAmount.add(buyerAmount)
+    );
+
+    await niftyKitV3.withdraw();
+
+    expect(await niftyKitV3.provider.getBalance(niftyKitV3.address)).to.be.eq(
+      0
+    );
+  });
+
+  it("should be able to withdraw with split fees", async function () {
+    const collectionId = "COLLECTION_ID_11";
+    const signature = await signer.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ["string", "uint96"],
+          [collectionId, feeRate]
+        )
+      )
+    );
+    const createDiamondTx = await niftyKitV3.createDiamond(
+      collectionId,
+      feeRate,
+      signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
+      "NAME",
+      "SYMBOL",
+      [ethers.utils.id("drop")]
+    );
+    const createDiamondReceipt = await createDiamondTx.wait();
+    const createdEvent = createDiamondReceipt.events?.find(
+      (event) => event.event === "DiamondCreated"
+    ) as DiamondCreatedEvent;
+    const diamondAddress = createdEvent.args[0];
+    const dropCollection = DropFacet__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
+
+    // split fees
+    await niftyKitV3.setFeeType(diamondAddress, 2);
+
+    expect(await dropCollection.saleActive()).to.be.false;
+
+    await dropCollection.startSale(...salesParam, false);
+
+    expect(await dropCollection.saleActive()).to.be.true;
+
+    const txMint = await dropCollection
+      .connect(accounts[1])
+      .mintTo(await accounts[1].getAddress(), 1, {
+        value: await dropCollection.price(),
+      });
+    const txMintReceipt = await txMint.wait();
+    const transferEvent = txMintReceipt.events?.find(
+      (event) => event.event === "Transfer"
+    );
+
+    expect(transferEvent).to.be.a("object");
+
+    const [sellerAmount, buyerAmount] = await niftyKitV3.commission(
+      dropCollection.address,
+      salesParam[3]
+    );
+
+    expect(sellerAmount).to.equal(buyerAmount);
+
+    expect(
+      await dropCollection.provider.getBalance(dropCollection.address)
+    ).to.be.eq(salesParam[3].sub(sellerAmount));
+
+    const diamondCollection = DiamondCollection__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
+    await diamondCollection.withdraw();
+
+    expect(
+      await dropCollection.provider.getBalance(dropCollection.address)
+    ).to.be.eq(0);
+
+    expect(await niftyKitV3.provider.getBalance(niftyKitV3.address)).to.be.eq(
+      sellerAmount.add(buyerAmount)
     );
 
     await niftyKitV3.withdraw();
@@ -863,112 +1031,17 @@ describe("DropFacet", function () {
 
     expect(transferEvent).to.be.a("object");
 
-    const commissionAmount = await niftyKitV3.commission(
+    const [sellerAmount, buyerAmount] = await niftyKitV3.commission(
       dropCollection.address,
       salesParam[3]
     );
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
-    ).to.be.eq(salesParam[3].sub(commissionAmount));
+    ).to.be.eq(salesParam[3].sub(sellerAmount.add(buyerAmount)));
 
     const tokenId = transferEvent!.args![2].toNumber();
 
     expect(tokenId).to.be.equal(1);
   });
-
-  // it("should be able to have blocked operator", async function () {
-  //   const dropCollection = await createDiamondDrop(niftyKit, accounts[0]);
-
-  //   const mockOperator = await createMockOperator(accounts[0]);
-
-  //   // start sale
-  //   expect(await dropCollection.saleActive()).to.be.false;
-  //   await dropCollection.startSale(...salesParam, false);
-  //   expect(await dropCollection.saleActive()).to.be.true;
-
-  //   // mint
-  //   const txMint = await dropCollection.mint(1, {
-  //     value: salesParam[3],
-  //   });
-  //   const txMintReceipt = await txMint.wait();
-  //   const transferEvent = txMintReceipt.events?.find(
-  //     (event) => event.event === "Transfer"
-  //   );
-  //   const tokenId = (transferEvent!.args![2] as BigNumber).toNumber();
-
-  //   // create registry
-  //   const registry = await createOperatorRegistry(accounts[0]);
-  //   // assign operator
-  //   await registry.setOperator(utils.id("OPENSEA"), mockOperator.address);
-
-  //   // assign registry to collection
-  //   await dropCollection.setOperatorRegistry(registry.address);
-
-  //   // block
-  //   await dropCollection.setBlockedOperator(utils.id("OPENSEA"), true);
-
-  //   // grant
-  //   await expect(
-  //     dropCollection.setApprovalForAll(mockOperator.address, true)
-  //   ).to.be.revertedWith("Operator has been blocked by contract owner.");
-
-  //   // fail
-  //   await expect(
-  //     mockOperator.mockTransfer(
-  //       dropCollection.address,
-  //       await accounts[0].getAddress(),
-  //       await accounts[1].getAddress(),
-  //       tokenId
-  //     )
-  //   ).to.be.revertedWith("ERC721Base__NotOwnerOrApproved");
-  // });
-
-  // it("should be able to have allowed operator", async function () {
-  //   const dropCollection = await createDiamondDrop(niftyKit, accounts[0]);
-
-  //   const mockOperator = await createMockOperator(accounts[0]);
-
-  //   // start sale
-  //   expect(await dropCollection.saleActive()).to.be.false;
-  //   await dropCollection.startSale(...salesParam, false);
-  //   expect(await dropCollection.saleActive()).to.be.true;
-
-  //   // mint
-  //   const txMint = await dropCollection.mint(1, {
-  //     value: salesParam[3],
-  //   });
-  //   const txMintReceipt = await txMint.wait();
-  //   const transferEvent = txMintReceipt.events?.find(
-  //     (event) => event.event === "Transfer"
-  //   );
-  //   const tokenId = (transferEvent!.args![2] as BigNumber).toNumber();
-
-  //   await expect(
-  //     mockOperator.mockTransfer(
-  //       dropCollection.address,
-  //       await accounts[0].getAddress(),
-  //       await accounts[1].getAddress(),
-  //       tokenId
-  //     )
-  //   ).to.be.revertedWith("ERC721Base__NotOwnerOrApproved");
-
-  //   // create registry
-  //   const registry = await createOperatorRegistry(accounts[0]);
-  //   // assign operator
-  //   await registry.setOperator(utils.id("OPENSEA"), mockOperator.address);
-
-  //   // assign registry to collection
-  //   await dropCollection.setOperatorRegistry(registry.address);
-
-  //   // allow
-  //   await dropCollection.setAllowedOperator(utils.id("OPENSEA"), true);
-
-  //   await mockOperator.mockTransfer(
-  //     dropCollection.address,
-  //     await accounts[0].getAddress(),
-  //     await accounts[1].getAddress(),
-  //     tokenId
-  //   );
-  // });
 });

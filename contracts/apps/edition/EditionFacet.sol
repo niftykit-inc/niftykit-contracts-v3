@@ -130,22 +130,102 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
     ) external payable {
         INiftyKitV3 niftyKit = BaseStorage.layout()._niftyKit;
         EditionStorage.Layout storage layout = EditionStorage.layout();
+        EditionStorage.Edition storage edition = layout._editions[editionId];
+        (uint256 sellerFees, uint256 buyerFees) = niftyKit.getFees(
+            edition.price.mul(quantity)
+        );
+
+        require(layout._count > editionId, "Does not exist");
+        require(edition.active, "Not active");
+        require(
+            edition.price.mul(quantity).add(buyerFees) <= msg.value,
+            "Value incorrect"
+        );
+        _requireQuantity(layout, edition, editionId, recipient, quantity);
+        _requireSignature(edition, editionId, signature);
+        _requireProof(edition, recipient, proof);
+
+        unchecked {
+            layout._editionRevenue = layout._editionRevenue.add(msg.value);
+            layout._mintCount[editionId][recipient] = layout
+            ._mintCount[editionId][recipient].add(quantity);
+        }
+
+        AddressUpgradeable.sendValue(
+            payable(address(niftyKit)),
+            sellerFees.add(buyerFees)
+        );
+
+        _mintEdition(edition, recipient, quantity);
+
+        emit EditionMinted(recipient, editionId, quantity, msg.value);
+    }
+
+    function getEdition(
+        uint256 editionId
+    ) external view returns (EditionStorage.Edition memory) {
+        return EditionStorage.layout()._editions[editionId];
+    }
+
+    function getEditionPrice(
+        uint256 editionId
+    ) external view returns (uint256) {
+        INiftyKitV3 niftyKit = BaseStorage.layout()._niftyKit;
+        EditionStorage.Layout storage layout = EditionStorage.layout();
         require(layout._count > editionId, "Does not exist");
 
         EditionStorage.Edition storage edition = layout._editions[editionId];
-        require(edition.active, "Not active");
-        require(edition.price.mul(quantity) <= msg.value, "Value incorrect");
+        uint256 basePrice = edition.price;
+        (, uint256 buyerFees) = niftyKit.getFees(basePrice);
+        return basePrice.add(buyerFees);
+    }
+
+    function editionRevenue() external view returns (uint256) {
+        return EditionStorage.layout()._editionRevenue;
+    }
+
+    function editionsCount() external view returns (uint256) {
+        return EditionStorage.layout()._count;
+    }
+
+    function _requireQuantity(
+        EditionStorage.Layout storage layout,
+        EditionStorage.Edition storage edition,
+        uint256 editionId,
+        address recipient,
+        uint256 quantity
+    ) internal view {
+        require(
+            layout._mintCount[editionId][recipient].add(quantity) <=
+                edition.maxPerWallet,
+            "Exceeded max per wallet"
+        );
         require(quantity <= edition.maxPerMint, "Exceeded max per mint");
         require(
             edition.maxQuantity == 0 ||
                 edition.quantity.add(quantity) <= edition.maxQuantity,
             "Exceeded max amount"
         );
+    }
+
+    function _requireSignature(
+        EditionStorage.Edition storage edition,
+        uint256 editionId,
+        bytes calldata signature
+    ) internal view {
         require(
-            layout._mintCount[editionId][recipient].add(quantity) <=
-                edition.maxPerWallet,
-            "Exceeded max per wallet"
+            keccak256(abi.encodePacked(editionId.add(edition.nonce)))
+                .toEthSignedMessageHash()
+                .recover(signature) == edition.signer,
+            "Invalid signature"
         );
+    }
+
+    function _requireProof(
+        EditionStorage.Edition storage edition,
+        address recipient,
+        bytes32[] calldata proof
+    ) internal view {
         if (edition.merkleRoot != "") {
             require(
                 MerkleProofUpgradeable.verify(
@@ -156,25 +236,13 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
                 "Invalid proof"
             );
         }
-        require(
-            keccak256(abi.encodePacked(editionId.add(edition.nonce)))
-                .toEthSignedMessageHash()
-                .recover(signature) == edition.signer,
-            "Invalid signature"
-        );
+    }
 
-        unchecked {
-            layout._editionRevenue = layout._editionRevenue.add(msg.value);
-            edition.quantity = edition.quantity.add(quantity);
-            layout._mintCount[editionId][recipient] = layout
-            ._mintCount[editionId][recipient].add(quantity);
-        }
-
-        AddressUpgradeable.sendValue(
-            payable(address(niftyKit)),
-            niftyKit.getFees(msg.value)
-        );
-
+    function _mintEdition(
+        EditionStorage.Edition storage edition,
+        address recipient,
+        uint256 quantity
+    ) internal {
         uint256 startTokenId = ERC721AStorage.layout()._currentIndex;
         for (
             uint256 tokenId = startTokenId;
@@ -190,22 +258,10 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
             }
         }
 
+        unchecked {
+            edition.quantity = edition.quantity.add(quantity);
+        }
+
         _mint(recipient, quantity);
-
-        emit EditionMinted(recipient, editionId, quantity, msg.value);
-    }
-
-    function getEdition(
-        uint256 editionId
-    ) external view returns (EditionStorage.Edition memory) {
-        return EditionStorage.layout()._editions[editionId];
-    }
-
-    function editionRevenue() external view returns (uint256) {
-        return EditionStorage.layout()._editionRevenue;
-    }
-
-    function editionsCount() external view returns (uint256) {
-        return EditionStorage.layout()._count;
     }
 }
