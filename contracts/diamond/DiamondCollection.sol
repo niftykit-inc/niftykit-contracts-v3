@@ -28,6 +28,7 @@ contract DiamondCollection {
         );
 
         layout._treasury = treasury;
+        layout._baseVersion = base.version;
         facetCuts = _appFacets(facetCuts, layout, registry, apps);
         facetCuts = _baseFacet(facetCuts, base);
 

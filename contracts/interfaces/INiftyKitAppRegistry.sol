@@ -13,6 +13,7 @@ interface INiftyKitAppRegistry {
         address implementation;
         bytes4[] interfaceIds;
         bytes4[] selectors;
+        uint8 version;
     }
 
     function getApp(bytes32 identifier) external view returns (App memory);

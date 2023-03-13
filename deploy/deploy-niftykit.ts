@@ -144,7 +144,8 @@ const deployFn = async function (hre: HardhatRuntimeEnvironment) {
       "0x2a55205a", // ERC2981 (royalty)
       "0x7f5828d0", // ERC173 (ownable)
     ],
-    getSelectors(base.interface)
+    getSelectors(base.interface),
+    1
   );
 
   await setBaseTx.wait();

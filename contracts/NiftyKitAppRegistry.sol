@@ -20,12 +20,14 @@ contract NiftyKitAppRegistry is OwnableUpgradeable, INiftyKitAppRegistry {
     function setBase(
         address implementation,
         bytes4[] calldata interfaceIds,
-        bytes4[] calldata selectors
+        bytes4[] calldata selectors,
+        uint8 version
     ) external onlyOwner {
         _base = Base({
             implementation: implementation,
             interfaceIds: interfaceIds,
-            selectors: selectors
+            selectors: selectors,
+            version: version
         });
     }
 

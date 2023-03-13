@@ -30,6 +30,7 @@ library BaseStorage {
         bool _operatorFilteringEnabled;
         Transfer _transferStatus;
         INiftyKitV3 _niftyKit;
+        uint8 _baseVersion;
         address _treasury;
         string _baseURI;
     }

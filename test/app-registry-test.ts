@@ -88,7 +88,8 @@ describe("NiftyKitAppRegistry", function () {
         "0x80ac58cd", // ERC721
         "0x2a55205a", // ERC2981
       ],
-      getSelectors(baseFacet.interface)
+      getSelectors(baseFacet.interface),
+      1
     );
 
     const base = await appRegistry.getBase();

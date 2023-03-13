@@ -59,7 +59,8 @@ describe("DiamondCollection", function () {
         "0x2a55205a", // ERC2981 (royalty)
         "0x7f5828d0", // ERC173 (ownable)
       ],
-      getSelectors(baseFacet.interface)
+      getSelectors(baseFacet.interface),
+      1
     );
 
     // register apps
