@@ -9,7 +9,7 @@ interface INiftyKitAppRegistry {
         uint8 version;
     }
 
-    struct Core {
+    struct Base {
         address implementation;
         bytes4[] interfaceIds;
         bytes4[] selectors;
@@ -17,5 +17,5 @@ interface INiftyKitAppRegistry {
 
     function getApp(bytes32 identifier) external view returns (App memory);
 
-    function getCore() external view returns (Core memory);
+    function getBase() external view returns (Base memory);
 }

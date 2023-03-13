@@ -3,7 +3,7 @@ import { upgrades } from "hardhat";
 import {
   DropFacet__factory,
   EditionFacet__factory,
-  CoreFacet__factory,
+  BaseFacet__factory,
   NiftyKitAppRegistry,
   NiftyKitAppRegistry__factory,
   NiftyKitV3,
@@ -94,8 +94,8 @@ export async function createApeCoinFacet(signer: Signer) {
   return res;
 }
 
-export async function createCoreFacet(signer: Signer) {
-  const factory = new CoreFacet__factory(signer);
+export async function createBaseFacet(signer: Signer) {
+  const factory = new BaseFacet__factory(signer);
   const facet = await factory.deploy();
   const res = await facet.deployed();
   return res;

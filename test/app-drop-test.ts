@@ -3,8 +3,8 @@ import { Signer, Wallet } from "ethers";
 import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
-  CoreFacet,
-  CoreFacet__factory,
+  BaseFacet,
+  BaseFacet__factory,
   DropFacet,
   DropFacet__factory,
   NiftyKitAppRegistry,
@@ -19,7 +19,7 @@ import {
   getSelectors,
   createExampleFacet,
   generateSigner,
-  createCoreFacet,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 const salesParam = [200, 150, 100, ethers.utils.parseEther("0.01")] as const;
@@ -29,7 +29,7 @@ describe("DropFacet", function () {
   let appRegistry: NiftyKitAppRegistry;
   let niftyKitV3: NiftyKitV3;
   let dropFacet: DropFacet;
-  let coreFacet: CoreFacet;
+  let baseFacet: BaseFacet;
   let signer: Wallet;
   const feeRate = 500;
 
@@ -37,19 +37,19 @@ describe("DropFacet", function () {
     accounts = await ethers.getSigners();
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
-    coreFacet = await createCoreFacet(accounts[0]);
+    baseFacet = await createBaseFacet(accounts[0]);
     signer = generateSigner();
     const exampleFacet = await createExampleFacet(accounts[0]);
 
-    // register core
-    await appRegistry.setCore(
-      coreFacet.address,
+    // register base
+    await appRegistry.setBase(
+      baseFacet.address,
       [
         "0x80ac58cd", // ERC721
         "0x2a55205a", // ERC2981 (royalty)
         "0x7f5828d0", // ERC173 (ownable)
       ],
-      getSelectors(coreFacet.interface)
+      getSelectors(baseFacet.interface)
     );
 
     // register apps
@@ -111,8 +111,8 @@ describe("DropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.owner()).to.eq(await accounts[0].getAddress());
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.owner()).to.eq(await accounts[0].getAddress());
   });
 
   it("should be able to start the drop", async function () {
@@ -799,8 +799,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3].sub(sellerAmount.add(buyerAmount)));
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    await core.withdraw();
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    await base.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
@@ -880,8 +880,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3]);
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    await core.withdraw();
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    await base.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
@@ -961,8 +961,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3].sub(sellerAmount));
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    await core.withdraw();
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    await base.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)

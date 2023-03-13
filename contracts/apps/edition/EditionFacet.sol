@@ -9,7 +9,6 @@ import {InternalERC721AUpgradeable} from "../../internals/InternalERC721AUpgrade
 import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
 import {INiftyKitV3} from "../../interfaces/INiftyKitV3.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
-import {CoreStorage} from "../../core/CoreStorage.sol";
 import {EditionStorage} from "./EditionStorage.sol";
 
 contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
@@ -249,7 +248,7 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
             tokenId < quantity + startTokenId;
 
         ) {
-            CoreStorage.layout()._tokenURIs[tokenId] = CoreStorage.URIEntry(
+            BaseStorage.layout()._tokenURIs[tokenId] = BaseStorage.URIEntry(
                 true,
                 edition.tokenURI
             );

@@ -4,11 +4,14 @@ import { getImplementationAddress } from "@openzeppelin/upgrades-core";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   ApeDropFacet__factory,
-  DiamondCollection__factory,
+  BaseFacet__factory,
+  BlockTokensFacet__factory,
   DropFacet__factory,
   EditionFacet__factory,
   NiftyKitAppRegistry__factory,
   NiftyKitV3__factory,
+  OperatorControlsFacet__factory,
+  RoyaltyControlsFacet__factory,
 } from "../typechain-types";
 import { getSelectors, getInterfaceId } from "../utils/utils";
 
@@ -67,30 +70,11 @@ const deployFn = async function (hre: HardhatRuntimeEnvironment) {
     console.log("error while verifying", err);
   }
 
-  // Deploy Diamond Implementation
-  console.log("Deploying DiamondCollection...");
-  const DiamondCollection = new DiamondCollection__factory(deployer);
-  const collection = await DiamondCollection.deploy();
-  await collection.deployed();
-  console.log("DiamondCollection address: ", collection.address);
-  console.log("Waiting for verification...");
-  await collection.deployTransaction.wait(5);
-  try {
-    console.log("verifying DiamondCollection...");
-    await hre.run("verify:verify", {
-      address: collection.address,
-      constructorArguments: [],
-    });
-  } catch (err) {
-    console.log("error while verifying", err);
-  }
-
   // Deploy NiftyKit
   console.log("Deploying NiftyKit...");
   const NiftyKit = new NiftyKitV3__factory(deployer);
   const proxy = await hre.upgrades.deployProxy(NiftyKit, [
     registryResults.contractAddress,
-    collection.address,
   ]);
   console.log("TX: ", proxy.deployTransaction.hash);
   await proxy.deployed();
@@ -132,6 +116,38 @@ const deployFn = async function (hre: HardhatRuntimeEnvironment) {
     registryResults.contractAddress,
     deployer
   );
+
+  // deploy core
+  console.log("Deploying Base...");
+  const baseFactory = new BaseFacet__factory(deployer);
+  const base = await baseFactory.deploy();
+  await base.deployed();
+  console.log("BaseFacet address: ", base.address);
+  console.log("Waiting for verification...");
+  await base.deployTransaction.wait(5);
+  try {
+    console.log("verifying BaseFacet...");
+    await hre.run("verify:verify", {
+      address: base.address,
+      constructorArguments: [],
+    });
+  } catch (err) {
+    console.log("error while verifying", err);
+  }
+
+  // setting base
+  console.log("Setting Core...");
+  const setBaseTx = await appRegistry.setBase(
+    base.address,
+    [
+      "0x80ac58cd", // ERC721
+      "0x2a55205a", // ERC2981 (royalty)
+      "0x7f5828d0", // ERC173 (ownable)
+    ],
+    getSelectors(base.interface)
+  );
+
+  await setBaseTx.wait();
 
   // deploy app
   console.log("Deploying DropFacet...");
@@ -220,6 +236,93 @@ const deployFn = async function (hre: HardhatRuntimeEnvironment) {
   );
 
   await registerApeAppTx.wait();
+
+  console.log("Deploying BlockTokensFacet...");
+  const blockTokensFactory = new BlockTokensFacet__factory(deployer);
+  const blockTokens = await blockTokensFactory.deploy();
+  await blockTokens.deployed();
+  console.log("BlockTokensFacet address: ", blockTokens.address);
+  console.log("Waiting for verification...");
+  await blockTokens.deployTransaction.wait(5);
+  try {
+    console.log("verifying BlockTokensFacet...");
+    await hre.run("verify:verify", {
+      address: blockTokens.address,
+      constructorArguments: [],
+    });
+  } catch (err) {
+    console.log("error while verifying", err);
+  }
+
+  // register app
+  console.log("Registering app...");
+  const registerBlockTokensApp = await appRegistry.registerApp(
+    ethers.utils.id("blockTokens"),
+    blockTokens.address,
+    getInterfaceId(blockTokens.interface),
+    getSelectors(blockTokens.interface),
+    1
+  );
+
+  await registerBlockTokensApp.wait();
+
+  console.log("Deploying OperatorControlsFacet...");
+  const operatorControlsFactory = new OperatorControlsFacet__factory(deployer);
+  const operatorControls = await operatorControlsFactory.deploy();
+  await operatorControls.deployed();
+  console.log("OperatorControlsFacet address: ", operatorControls.address);
+  console.log("Waiting for verification...");
+  await operatorControls.deployTransaction.wait(5);
+  try {
+    console.log("verifying OperatorControlsFacet...");
+    await hre.run("verify:verify", {
+      address: operatorControls.address,
+      constructorArguments: [],
+    });
+  } catch (err) {
+    console.log("error while verifying", err);
+  }
+
+  // register app
+  console.log("Registering app...");
+  const registerOperatorControlsApp = await appRegistry.registerApp(
+    ethers.utils.id("operatorControls"),
+    operatorControls.address,
+    getInterfaceId(operatorControls.interface),
+    getSelectors(operatorControls.interface),
+    1
+  );
+
+  await registerOperatorControlsApp.wait();
+
+  console.log("Deploying RoyaltyControlsFacet...");
+  const royaltyControlsFactory = new RoyaltyControlsFacet__factory(deployer);
+  const royaltyControls = await royaltyControlsFactory.deploy();
+  await royaltyControls.deployed();
+  console.log("RoyaltyControlsFacet address: ", royaltyControls.address);
+  console.log("Waiting for verification...");
+  await royaltyControls.deployTransaction.wait(5);
+  try {
+    console.log("verifying RoyaltyControlsFacet...");
+    await hre.run("verify:verify", {
+      address: royaltyControls.address,
+      constructorArguments: [],
+    });
+  } catch (err) {
+    console.log("error while verifying", err);
+  }
+
+  // register app
+  console.log("Registering app...");
+  const registerRoyaltyControlsTx = await appRegistry.registerApp(
+    ethers.utils.id("royaltyControls"),
+    royaltyControls.address,
+    getInterfaceId(royaltyControls.interface),
+    getSelectors(royaltyControls.interface),
+    1
+  );
+
+  await registerRoyaltyControlsTx.wait();
 
   console.log("Done!");
 };

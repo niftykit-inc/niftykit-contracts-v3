@@ -5,8 +5,8 @@ import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
   ApeDropFacet,
   ApeDropFacet__factory,
-  CoreFacet,
-  CoreFacet__factory,
+  BaseFacet,
+  BaseFacet__factory,
   DropFacet,
   DropFacet__factory,
   MockERC20,
@@ -23,7 +23,7 @@ import {
   createApeCoinFacet,
   createMockERC20,
   generateSigner,
-  createCoreFacet,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 const salesParam = [200, 150, 100, ethers.utils.parseEther("0.01")] as const;
@@ -34,7 +34,7 @@ describe("ApeDropFacet", function () {
   let niftyKitV3: NiftyKitV3;
   let dropFacet: DropFacet;
   let apeDropFacet: ApeDropFacet;
-  let coreFacet: CoreFacet;
+  let baseFacet: BaseFacet;
   let apeCoin: MockERC20;
   let signer: Wallet;
   const feeRate = 500;
@@ -44,19 +44,19 @@ describe("ApeDropFacet", function () {
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
     apeDropFacet = await createApeCoinFacet(accounts[0]);
-    coreFacet = await createCoreFacet(accounts[0]);
+    baseFacet = await createBaseFacet(accounts[0]);
     apeCoin = await createMockERC20(accounts[0]);
     signer = generateSigner();
 
-    // register core
-    await appRegistry.setCore(
-      coreFacet.address,
+    // register base
+    await appRegistry.setBase(
+      baseFacet.address,
       [
         "0x80ac58cd", // ERC721
         "0x2a55205a", // ERC2981 (royalty)
         "0x7f5828d0", // ERC173 (ownable)
       ],
-      getSelectors(coreFacet.interface)
+      getSelectors(baseFacet.interface)
     );
 
     // register apps
@@ -110,14 +110,14 @@ describe("ApeDropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
-    expect(await core.owner()).to.eq(await accounts[0].getAddress());
+    expect(await base.owner()).to.eq(await accounts[0].getAddress());
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropCollection.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -155,14 +155,14 @@ describe("ApeDropFacet", function () {
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
 
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -200,13 +200,13 @@ describe("ApeDropFacet", function () {
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -274,13 +274,13 @@ describe("ApeDropFacet", function () {
       diamondAddress,
       accounts[0]
     );
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -366,13 +366,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -459,13 +459,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -550,13 +550,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -640,13 +640,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -730,13 +730,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -834,13 +834,13 @@ describe("ApeDropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -919,15 +919,15 @@ describe("ApeDropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
-    expect(await core.owner()).to.eq(await accounts[0].getAddress());
+    expect(await base.owner()).to.eq(await accounts[0].getAddress());
 
     // install apeDrop
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropCollection.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -935,13 +935,13 @@ describe("ApeDropFacet", function () {
     );
 
     // uninstall apeDrop
-    await core["removeApp(bytes32,bytes)"](
+    await base["removeApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropCollection.interface.encodeFunctionData("finalizeApeDrop")
     );
 
     // install apeDrop again
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropCollection.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,

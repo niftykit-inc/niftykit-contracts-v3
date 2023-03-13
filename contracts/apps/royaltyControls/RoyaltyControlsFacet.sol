@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import {ERC2981Storage} from "@solidstate/contracts/token/common/ERC2981/ERC2981Storage.sol";
 import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
-import {CoreStorage} from "../../core/CoreStorage.sol";
 
 contract RoyaltyControlsFacet is InternalOwnableRoles {
     function setDefaultRoyalty(

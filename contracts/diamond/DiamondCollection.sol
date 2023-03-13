@@ -22,18 +22,18 @@ contract DiamondCollection {
         INiftyKitAppRegistry registry = INiftyKitAppRegistry(
             layout._niftyKit.appRegistry()
         );
-        INiftyKitAppRegistry.Core memory core = registry.getCore();
+        INiftyKitAppRegistry.Base memory base = registry.getBase();
         IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](
             apps.length + 1
         );
 
         layout._treasury = treasury;
         facetCuts = _appFacets(facetCuts, layout, registry, apps);
-        facetCuts = _coreFacet(facetCuts, core);
+        facetCuts = _baseFacet(facetCuts, base);
 
         LibDiamond.diamondCut(
             facetCuts,
-            core.implementation,
+            base.implementation,
             abi.encodeWithSignature(
                 "_initialize(address,string,string,address,uint16)",
                 owner,
@@ -74,20 +74,20 @@ contract DiamondCollection {
         return facetCuts;
     }
 
-    function _coreFacet(
+    function _baseFacet(
         IDiamondCut.FacetCut[] memory facetCuts,
-        INiftyKitAppRegistry.Core memory core
+        INiftyKitAppRegistry.Base memory base
     ) internal returns (IDiamondCut.FacetCut[] memory) {
         LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
         facetCuts[facetCuts.length - 1] = IDiamondCut.FacetCut({
-            facetAddress: core.implementation,
+            facetAddress: base.implementation,
             action: IDiamondCut.FacetCutAction.Add,
-            functionSelectors: core.selectors
+            functionSelectors: base.selectors
         });
 
-        uint256 idsLength = core.interfaceIds.length;
+        uint256 idsLength = base.interfaceIds.length;
         for (uint256 i = 0; i < idsLength; ) {
-            ds.supportedInterfaces[core.interfaceIds[i]] = true;
+            ds.supportedInterfaces[base.interfaceIds[i]] = true;
 
             unchecked {
                 i++;

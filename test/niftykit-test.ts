@@ -3,13 +3,13 @@ import { Signer, Wallet } from "ethers";
 import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
-  CoreFacet,
+  BaseFacet,
   DropFacet,
   DropFacet__factory,
   ExampleFacet__factory,
   NiftyKitAppRegistry,
   NiftyKitV3,
-  CoreFacet__factory,
+  BaseFacet__factory,
 } from "../typechain-types";
 import {
   createNiftyKitV3,
@@ -19,14 +19,14 @@ import {
   getSelectors,
   createExampleFacet,
   generateSigner,
-  createCoreFacet,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 describe("NiftyKitV3", function () {
   let accounts: Signer[];
   let appRegistry: NiftyKitAppRegistry;
   let niftyKitV3: NiftyKitV3;
-  let coreFacet: CoreFacet;
+  let baseFacet: BaseFacet;
   let dropFacet: DropFacet;
   let signer: Wallet;
   const feeRate = 500;
@@ -35,20 +35,20 @@ describe("NiftyKitV3", function () {
     accounts = await ethers.getSigners();
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
-    coreFacet = await createCoreFacet(accounts[0]);
+    baseFacet = await createBaseFacet(accounts[0]);
     signer = generateSigner();
 
     const exampleFacet = await createExampleFacet(accounts[0]);
 
-    // register core
-    await appRegistry.setCore(
-      coreFacet.address,
+    // register base
+    await appRegistry.setBase(
+      baseFacet.address,
       [
         "0x80ac58cd", // ERC721
         "0x2a55205a", // ERC2981 (royalty)
         "0x7f5828d0", // ERC173 (ownable)
       ],
-      getSelectors(coreFacet.interface)
+      getSelectors(baseFacet.interface)
     );
 
     // register apps
@@ -219,19 +219,19 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.name()).to.equals("NAME");
-    expect(await core.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     // install apps
-    await core["installApp(bytes32)"](ethers.utils.id("drop"));
-    await core["installApp(bytes32)"](ethers.utils.id("example"));
+    await base["installApp(bytes32)"](ethers.utils.id("drop"));
+    await base["installApp(bytes32)"](ethers.utils.id("example"));
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await core.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -240,15 +240,15 @@ describe("NiftyKitV3", function () {
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await core.setBaseURI("foo");
-    expect(await core.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
 
-    expect((await core.getApp(ethers.utils.id("drop"))).version).to.equals(1);
-    expect((await core.getApp(ethers.utils.id("example"))).version).to.equals(
+    expect((await base.getApp(ethers.utils.id("drop"))).version).to.equals(1);
+    expect((await base.getApp(ethers.utils.id("example"))).version).to.equals(
       1
     );
     expect(
-      (await core.getApp(ethers.utils.id("non-existing"))).version
+      (await base.getApp(ethers.utils.id("non-existing"))).version
     ).to.equals(0);
   });
 
@@ -279,19 +279,19 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.name()).to.equals("NAME");
-    expect(await core.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     // install apps
-    await core["installApp(bytes32)"](ethers.utils.id("drop"));
-    await core["installApp(bytes32)"](ethers.utils.id("example"));
+    await base["installApp(bytes32)"](ethers.utils.id("drop"));
+    await base["installApp(bytes32)"](ethers.utils.id("example"));
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await core.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -300,10 +300,10 @@ describe("NiftyKitV3", function () {
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await core.setBaseURI("foo");
-    expect(await core.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
 
-    await core["removeApp(bytes32)"](ethers.utils.id("example"));
+    await base["removeApp(bytes32)"](ethers.utils.id("example"));
 
     await expect(exampleFacet.setFoo("boo")).to.be.revertedWith("");
   });
@@ -335,18 +335,18 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.name()).to.equals("NAME");
-    expect(await core.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     // install apps
-    await core["installApp(bytes32)"](ethers.utils.id("example"));
+    await base["installApp(bytes32)"](ethers.utils.id("example"));
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await core.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -355,8 +355,8 @@ describe("NiftyKitV3", function () {
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await core.setBaseURI("foo");
-    expect(await core.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
   });
 
   it("should be able to install multiple apps during creation", async function () {
@@ -386,15 +386,15 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.name()).to.equals("NAME");
-    expect(await core.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await core.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -403,8 +403,8 @@ describe("NiftyKitV3", function () {
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await core.setBaseURI("foo");
-    expect(await core.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
   });
 
   it("should be able to install an app with initializer", async function () {
@@ -434,9 +434,9 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.name()).to.equals("NAME");
-    expect(await core.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -444,10 +444,10 @@ describe("NiftyKitV3", function () {
     );
 
     // install apps
-    await core["installApp(bytes32)"](ethers.utils.id("drop"));
+    await base["installApp(bytes32)"](ethers.utils.id("drop"));
 
     // install with initializer
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("initializeExampleFacet", [
         "coo",
@@ -458,18 +458,18 @@ describe("NiftyKitV3", function () {
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await core.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await core.setBaseURI("foo");
-    expect(await core.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
 
     // uninstall app
-    await core["removeApp(bytes32,bytes)"](
+    await base["removeApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("finalizeExampleFacet")
     );
@@ -568,9 +568,9 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await core.name()).to.equals("NAME");
-    expect(await core.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -578,7 +578,7 @@ describe("NiftyKitV3", function () {
     );
 
     // install with initializer
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("initializeExampleFacet", [
         "coo",
@@ -588,7 +588,7 @@ describe("NiftyKitV3", function () {
     expect(await exampleFacet.getFoo()).to.equals("coo");
 
     // uninstall app
-    await core["removeApp(bytes32,bytes)"](
+    await base["removeApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("finalizeExampleFacet")
     );
@@ -598,7 +598,7 @@ describe("NiftyKitV3", function () {
     );
 
     // install with initializer again
-    await core["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("initializeExampleFacet", [
         "coo",

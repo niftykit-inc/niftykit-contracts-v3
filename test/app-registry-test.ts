@@ -7,7 +7,7 @@ import {
   createDropFacet,
   getInterfaceId,
   getSelectors,
-  createCoreFacet,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 describe("NiftyKitAppRegistry", function () {
@@ -78,20 +78,20 @@ describe("NiftyKitAppRegistry", function () {
     );
   });
 
-  it("should be able to set core app", async function () {
-    const coreFacet = await createCoreFacet(accounts[0]);
+  it("should be able to set base app", async function () {
+    const baseFacet = await createBaseFacet(accounts[0]);
 
-    // set core
-    await appRegistry.setCore(
-      coreFacet.address,
+    // set base
+    await appRegistry.setBase(
+      baseFacet.address,
       [
         "0x80ac58cd", // ERC721
         "0x2a55205a", // ERC2981
       ],
-      getSelectors(coreFacet.interface)
+      getSelectors(baseFacet.interface)
     );
 
-    const core = await appRegistry.getCore();
-    expect(core.implementation).to.eq(coreFacet.address);
+    const base = await appRegistry.getBase();
+    expect(base.implementation).to.eq(baseFacet.address);
   });
 });
