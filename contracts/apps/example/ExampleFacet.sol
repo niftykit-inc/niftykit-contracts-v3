@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
 import {InternalERC721AUpgradeable} from "../../internals/InternalERC721AUpgradeable.sol";
 import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";

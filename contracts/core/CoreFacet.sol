@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import {ERC2981Upgradeable} from "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
@@ -7,9 +7,10 @@ import {ERC721AUpgradeable} from "erc721a-upgradeable/contracts/ERC721AUpgradeab
 import {OperatorFilterer} from "closedsea/src/OperatorFilterer.sol";
 import {MinimalOwnableRoles} from "../internals/MinimalOwnableRoles.sol";
 import {INiftyKitAppRegistry} from "../interfaces/INiftyKitAppRegistry.sol";
+import {IDiamondCut} from "../interfaces/IDiamondCut.sol";
 import {DiamondLoupeFacet} from "../diamond/DiamondLoupeFacet.sol";
-import {NiftyKitDiamond} from "../diamond/NiftyKitDiamond.sol";
 import {BaseStorage} from "../diamond/BaseStorage.sol";
+import {LibDiamond} from "../libraries/LibDiamond.sol";
 import {CoreStorage} from "./CoreStorage.sol";
 
 contract CoreFacet is
@@ -17,7 +18,6 @@ contract CoreFacet is
     ERC2981Upgradeable,
     MinimalOwnableRoles,
     OperatorFilterer,
-    NiftyKitDiamond,
     DiamondLoupeFacet
 {
     modifier preventTransfers(address from, uint256 tokenId) virtual {
@@ -36,7 +36,7 @@ contract CoreFacet is
         _;
     }
 
-    function _initializeCore(
+    function _initialize(
         address owner_,
         string calldata name_,
         string calldata symbol_,
@@ -271,6 +271,57 @@ contract CoreFacet is
 
     function _startTokenId() internal pure override returns (uint256) {
         return 1;
+    }
+
+    function _installApp(
+        bytes32 name,
+        address init,
+        bytes memory data
+    ) internal {
+        BaseStorage.Layout storage layout = BaseStorage.layout();
+        LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
+        INiftyKitAppRegistry registry = INiftyKitAppRegistry(
+            layout._niftyKit.appRegistry()
+        );
+        INiftyKitAppRegistry.App memory app = registry.getApp(name);
+        require(app.version > 0, "App does not exist");
+
+        IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](1);
+        facetCuts[0] = IDiamondCut.FacetCut({
+            facetAddress: app.implementation,
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: app.selectors
+        });
+
+        ds.supportedInterfaces[app.interfaceId] = true;
+
+        LibDiamond.diamondCut(facetCuts, init, data);
+        layout._apps[name] = app;
+    }
+
+    function _removeApp(
+        bytes32 name,
+        address init,
+        bytes memory data
+    ) internal {
+        BaseStorage.Layout storage layout = BaseStorage.layout();
+        LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
+        INiftyKitAppRegistry.App memory app = layout._apps[name];
+        require(app.version > 0, "App does not exist");
+
+        IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](1);
+        facetCuts[0] = IDiamondCut.FacetCut({
+            facetAddress: address(0),
+            action: IDiamondCut.FacetCutAction.Remove,
+            functionSelectors: app.selectors
+        });
+
+        ds.supportedInterfaces[app.interfaceId] = false;
+
+        // execute callback function before performing a diamond cut
+        LibDiamond.initializeDiamondCut(init, data);
+        LibDiamond.diamondCut(facetCuts, address(0), "");
+        delete layout._apps[name];
     }
 
     function supportsInterface(

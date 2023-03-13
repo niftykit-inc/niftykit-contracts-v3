@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
 import {INiftyKitAppRegistry} from "../interfaces/INiftyKitAppRegistry.sol";
 import {INiftyKitV3} from "../interfaces/INiftyKitV3.sol";
@@ -35,7 +35,7 @@ contract DiamondCollection {
             facetCuts,
             core.implementation,
             abi.encodeWithSignature(
-                "_initializeCore(address,string,string,address,uint96)",
+                "_initialize(address,string,string,address,uint96)",
                 owner,
                 name,
                 symbol,
