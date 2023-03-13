@@ -2,7 +2,6 @@
 pragma solidity ^0.8.18;
 
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {MerkleProofUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -15,7 +14,6 @@ import {ApeDropStorage} from "./ApeDropStorage.sol";
 
 contract ApeDropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
     using AddressUpgradeable for address;
-    using SafeMathUpgradeable for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     modifier onlyMintable(uint64 quantity) {
@@ -24,7 +22,7 @@ contract ApeDropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         require(quantity <= layout._maxPerMint, "Exceeded max per mint");
         if (
             layout._maxAmount > 0 &&
-            _totalSupply().add(quantity) > layout._maxAmount
+            _totalSupply() + quantity > layout._maxAmount
         ) {
             revert("Exceeded max supply");
         }
@@ -146,10 +144,10 @@ contract ApeDropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
 
     function _apePurchaseMint(uint64 quantity, address to) internal {
         ApeDropStorage.Layout storage layout = ApeDropStorage.layout();
-        uint256 total = layout._apePrice.mul(quantity);
+        uint256 total = layout._apePrice * quantity;
 
         unchecked {
-            layout._apeRevenue = layout._apeRevenue.add(total);
+            layout._apeRevenue = layout._apeRevenue + total;
         }
 
         layout._apeCoinContract.safeTransferFrom(to, address(this), total);

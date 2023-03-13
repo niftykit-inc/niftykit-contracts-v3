@@ -3,6 +3,7 @@ import { upgrades } from "hardhat";
 import {
   DropFacet__factory,
   EditionFacet__factory,
+  CoreFacet__factory,
   NiftyKitAppRegistry,
   NiftyKitAppRegistry__factory,
   DiamondCollection__factory,
@@ -17,14 +18,10 @@ import {
 export async function createNiftyKitV3(
   signer: Signer,
   appRegistryAddress: string,
-  implementationAddress: string,
   signerAddress?: string
 ) {
   const factory = new NiftyKitV3__factory(signer);
-  const niftyKitV3 = await upgrades.deployProxy(factory, [
-    appRegistryAddress,
-    implementationAddress,
-  ]);
+  const niftyKitV3 = await upgrades.deployProxy(factory, [appRegistryAddress]);
   const res = (await niftyKitV3.deployed()) as NiftyKitV3;
   if (signerAddress) {
     await res.setSigner(signerAddress);
@@ -76,6 +73,13 @@ export async function createMockERC20(signer: Signer) {
 
 export async function createApeCoinFacet(signer: Signer) {
   const factory = new ApeDropFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createCoreFacet(signer: Signer) {
+  const factory = new CoreFacet__factory(signer);
   const facet = await factory.deploy();
   const res = await facet.deployed();
   return res;

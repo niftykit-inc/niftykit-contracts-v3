@@ -1,8 +1,9 @@
 import { expect } from "chai";
 import { Signer, Wallet } from "ethers";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
+  CoreFacet,
   DiamondCollection,
   DiamondCollection__factory,
   DropFacet,
@@ -20,6 +21,7 @@ import {
   createExampleFacet,
   generateSigner,
   createMockOperator,
+  createCoreFacet,
 } from "./utils/niftykit";
 
 const salesParam = [200, 150, 100, ethers.utils.parseEther("0.01")] as const;
@@ -29,6 +31,7 @@ describe("DiamondCollection", function () {
   let appRegistry: NiftyKitAppRegistry;
   let niftyKitV3: NiftyKitV3;
   let dropFacet: DropFacet;
+  let coreFacet: CoreFacet;
   let implementation: DiamondCollection;
   let signer: Wallet;
   const feeRate = 500;
@@ -38,8 +41,16 @@ describe("DiamondCollection", function () {
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
     implementation = await createImplementation(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
+    coreFacet = await createCoreFacet(accounts[0]);
     signer = generateSigner();
     const exampleFacet = await createExampleFacet(accounts[0]);
+
+    // register core
+    await appRegistry.setCore(
+      coreFacet.address,
+      [getInterfaceId(coreFacet.interface)], // change this
+      getSelectors(coreFacet.interface)
+    );
 
     // register apps
     await appRegistry.registerApp(
@@ -80,8 +91,8 @@ describe("DiamondCollection", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -122,8 +133,8 @@ describe("DiamondCollection", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -181,8 +192,8 @@ describe("DiamondCollection", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -251,8 +262,8 @@ describe("DiamondCollection", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -290,8 +301,8 @@ describe("DiamondCollection", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -367,7 +378,7 @@ describe("DiamondCollection", function () {
       );
 
     // Block all
-    await diamondCollection.setTransferStatus(3);
+    await diamondCollection.setTransferStatus(2);
 
     await expect(
       diamondCollection
@@ -408,8 +419,8 @@ describe("DiamondCollection", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -535,13 +546,13 @@ describe("DiamondCollection", function () {
       );
   });
 
-  it("should be set transfer status: block specific tokens", async function () {
+  it("should be able to block specific tokens", async function () {
     const collectionId = "COLLECTION_ID_transfer_status_block_specific";
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -595,9 +606,6 @@ describe("DiamondCollection", function () {
         await accounts[2].getAddress(),
         1
       );
-
-    // Block tokens
-    await diamondCollection.setTransferStatus(2);
 
     // should work
     await diamondCollection

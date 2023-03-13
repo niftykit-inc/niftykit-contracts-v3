@@ -2,7 +2,6 @@
 pragma solidity ^0.8.18;
 
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {MerkleProofUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 import {ECDSAUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import {ERC721AStorage} from "erc721a-upgradeable/contracts/ERC721AStorage.sol";
@@ -10,6 +9,7 @@ import {InternalERC721AUpgradeable} from "../../internals/InternalERC721AUpgrade
 import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
 import {INiftyKitV3} from "../../interfaces/INiftyKitV3.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
+import {CoreStorage} from "../../core/CoreStorage.sol";
 import {EditionStorage} from "./EditionStorage.sol";
 
 contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
@@ -22,7 +22,6 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
     );
 
     using AddressUpgradeable for address;
-    using SafeMathUpgradeable for uint256;
     using ECDSAUpgradeable for bytes32;
 
     function createEdition(
@@ -49,7 +48,7 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         });
 
         unchecked {
-            layout._count = editionId.add(1);
+            layout._count = editionId + 1;
         }
 
         emit EditionCreated(editionId);
@@ -118,7 +117,7 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         require(layout._count > editionId, "Does not exist");
 
         EditionStorage.Edition storage edition = layout._editions[editionId];
-        edition.nonce = edition.nonce.add(1);
+        edition.nonce = edition.nonce + 1;
     }
 
     function mintEdition(
@@ -132,13 +131,13 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         EditionStorage.Layout storage layout = EditionStorage.layout();
         EditionStorage.Edition storage edition = layout._editions[editionId];
         (uint256 sellerFees, uint256 buyerFees) = niftyKit.getFees(
-            edition.price.mul(quantity)
+            edition.price * quantity
         );
 
         require(layout._count > editionId, "Does not exist");
         require(edition.active, "Not active");
         require(
-            edition.price.mul(quantity).add(buyerFees) <= msg.value,
+            edition.price * quantity + buyerFees <= msg.value,
             "Value incorrect"
         );
         _requireQuantity(layout, edition, editionId, recipient, quantity);
@@ -146,14 +145,15 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         _requireProof(edition, recipient, proof);
 
         unchecked {
-            layout._editionRevenue = layout._editionRevenue.add(msg.value);
-            layout._mintCount[editionId][recipient] = layout
-            ._mintCount[editionId][recipient].add(quantity);
+            layout._editionRevenue = layout._editionRevenue + msg.value;
+            layout._mintCount[editionId][recipient] =
+                layout._mintCount[editionId][recipient] +
+                quantity;
         }
 
         AddressUpgradeable.sendValue(
             payable(address(niftyKit)),
-            sellerFees.add(buyerFees)
+            sellerFees + buyerFees
         );
 
         _mintEdition(edition, recipient, quantity);
@@ -177,7 +177,7 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         EditionStorage.Edition storage edition = layout._editions[editionId];
         uint256 basePrice = edition.price;
         (, uint256 buyerFees) = niftyKit.getFees(basePrice);
-        return basePrice.add(buyerFees);
+        return basePrice + buyerFees;
     }
 
     function editionRevenue() external view returns (uint256) {
@@ -196,14 +196,14 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         uint256 quantity
     ) internal view {
         require(
-            layout._mintCount[editionId][recipient].add(quantity) <=
+            layout._mintCount[editionId][recipient] + quantity <=
                 edition.maxPerWallet,
             "Exceeded max per wallet"
         );
         require(quantity <= edition.maxPerMint, "Exceeded max per mint");
         require(
             edition.maxQuantity == 0 ||
-                edition.quantity.add(quantity) <= edition.maxQuantity,
+                edition.quantity + quantity <= edition.maxQuantity,
             "Exceeded max amount"
         );
     }
@@ -214,9 +214,9 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         bytes calldata signature
     ) internal view {
         require(
-            keccak256(abi.encodePacked(editionId.add(edition.nonce)))
-                .toEthSignedMessageHash()
-                .recover(signature) == edition.signer,
+            keccak256(
+                abi.encodePacked(editionId + edition.nonce, block.chainid)
+            ).toEthSignedMessageHash().recover(signature) == edition.signer,
             "Invalid signature"
         );
     }
@@ -249,7 +249,7 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
             tokenId < quantity + startTokenId;
 
         ) {
-            BaseStorage.layout()._tokenURIs[tokenId] = BaseStorage.URIEntry(
+            CoreStorage.layout()._tokenURIs[tokenId] = CoreStorage.URIEntry(
                 true,
                 edition.tokenURI
             );
@@ -259,7 +259,7 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         }
 
         unchecked {
-            edition.quantity = edition.quantity.add(quantity);
+            edition.quantity = edition.quantity + quantity;
         }
 
         _mint(recipient, quantity);

@@ -5,6 +5,8 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {INiftyKitAppRegistry} from "./interfaces/INiftyKitAppRegistry.sol";
 
 contract NiftyKitAppRegistry is OwnableUpgradeable, INiftyKitAppRegistry {
+    Core internal _core;
+
     mapping(bytes32 => App) internal _apps;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -16,6 +18,18 @@ contract NiftyKitAppRegistry is OwnableUpgradeable, INiftyKitAppRegistry {
         __Ownable_init();
     }
 
+    function setCore(
+        address implementation,
+        bytes4[] calldata interfaceIds,
+        bytes4[] calldata selectors
+    ) external onlyOwner {
+        _core = Core({
+            implementation: implementation,
+            interfaceIds: interfaceIds,
+            selectors: selectors
+        });
+    }
+
     function registerApp(
         bytes32 name,
         address implementation,
@@ -23,10 +37,6 @@ contract NiftyKitAppRegistry is OwnableUpgradeable, INiftyKitAppRegistry {
         bytes4[] calldata selectors,
         uint8 version
     ) external onlyOwner {
-        require(
-            version > 0,
-            "NiftyKitAppRegistry: Version must be greater than zero"
-        );
         require(
             version > _apps[name].version,
             "NiftyKitAppRegistry: Version must be greater than previous"
@@ -42,5 +52,9 @@ contract NiftyKitAppRegistry is OwnableUpgradeable, INiftyKitAppRegistry {
 
     function getApp(bytes32 name) external view returns (App memory) {
         return _apps[name];
+    }
+
+    function getCore() external view returns (Core memory) {
+        return _core;
     }
 }

@@ -47,7 +47,7 @@ describe("NiftyKitAppRegistry", function () {
         0
       )
     ).to.be.revertedWith(
-      "NiftyKitAppRegistry: Version must be greater than zero"
+      "NiftyKitAppRegistry: Version must be greater than previous"
     );
   });
 

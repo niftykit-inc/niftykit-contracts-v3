@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "hardhat/console.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {MerkleProofUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 import {ERC721AStorage} from "erc721a-upgradeable/contracts/ERC721AStorage.sol";
 import {InternalERC721AUpgradeable} from "../../internals/InternalERC721AUpgradeable.sol";
@@ -14,7 +12,6 @@ import {DropStorage} from "./DropStorage.sol";
 
 contract DropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
     using AddressUpgradeable for address;
-    using SafeMathUpgradeable for uint256;
 
     modifier onlyMintable(uint64 quantity) {
         DropStorage.Layout storage layout = DropStorage.layout();
@@ -22,7 +19,7 @@ contract DropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         require(quantity <= layout._maxPerMint, "Exceeded max per mint");
         if (
             layout._maxAmount > 0 &&
-            _totalSupply().add(quantity) > layout._maxAmount
+            _totalSupply() + quantity > layout._maxAmount
         ) {
             revert("Exceeded max supply");
         }
@@ -131,7 +128,7 @@ contract DropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         INiftyKitV3 niftyKit = BaseStorage.layout()._niftyKit;
         uint256 basePrice = DropStorage.layout()._price;
         (, uint256 buyerFees) = niftyKit.getFees(basePrice);
-        return basePrice.add(buyerFees);
+        return basePrice + buyerFees;
     }
 
     function displayPrice() external view returns (uint256) {
@@ -153,17 +150,17 @@ contract DropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
     function _purchaseMint(uint64 quantity, address to) internal {
         INiftyKitV3 niftyKit = BaseStorage.layout()._niftyKit;
         DropStorage.Layout storage layout = DropStorage.layout();
-        uint256 mintPrice = layout._price.mul(quantity);
+        uint256 mintPrice = layout._price * quantity;
         (uint256 sellerFees, uint256 buyerFees) = niftyKit.getFees(mintPrice);
-        require(mintPrice.add(buyerFees) <= msg.value, "Value incorrect");
+        require(mintPrice + buyerFees <= msg.value, "Value incorrect");
 
         unchecked {
-            layout._dropRevenue = layout._dropRevenue.add(msg.value);
+            layout._dropRevenue = layout._dropRevenue + msg.value;
         }
 
         AddressUpgradeable.sendValue(
             payable(address(niftyKit)),
-            sellerFees.add(buyerFees)
+            sellerFees + buyerFees
         );
 
         _setAux(to, _getAux(to) + quantity);

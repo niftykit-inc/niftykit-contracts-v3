@@ -3,24 +3,21 @@ pragma solidity ^0.8.18;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {ECDSAUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import {ClonesUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
-import {IDiamondCollection} from "./interfaces/IDiamondCollection.sol";
+import {DiamondCollection} from "./diamond/DiamondCollection.sol";
 import {IDropKitPass} from "./interfaces/IDropKitPass.sol";
 import {INiftyKitV3} from "./interfaces/INiftyKitV3.sol";
 import {IERC173} from "./interfaces/IERC173.sol";
 
 contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
-    using SafeMathUpgradeable for uint256;
     using AddressUpgradeable for address;
     using ECDSAUpgradeable for bytes32;
 
     address private _signer;
     address private _treasury;
     address private _appRegistry;
-    address private _diamondImplementation;
     mapping(string => bool) _verifiedCollections;
     mapping(address => Collection) private _collections;
 
@@ -29,12 +26,8 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(
-        address appRegistry_,
-        address diamondImplementation_
-    ) public initializer {
+    function initialize(address appRegistry_) public initializer {
         _appRegistry = appRegistry_;
-        _diamondImplementation = diamondImplementation_;
         _treasury = _msgSender();
         __Ownable_init();
     }
@@ -45,7 +38,7 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
     ) public view override returns (uint256, uint256) {
         Collection memory _collection = _collections[collection];
         require(_collection.exists, "Invalid collection");
-        uint256 feeAmount = _collection.feeRate.mul(amount).div(10000);
+        uint256 feeAmount = (_collection.feeRate * amount) / 10000;
 
         if (_collection.feeType == FeeType.Seller) {
             return (feeAmount, 0);
@@ -55,7 +48,9 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
             return (0, feeAmount);
         }
 
-        return (feeAmount.div(2), feeAmount.div(2));
+        uint256 splitAmount = feeAmount / 2;
+
+        return (splitAmount, splitAmount);
     }
 
     function getFees(
@@ -72,11 +67,7 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         return _treasury;
     }
 
-    function diamondImplementation() external view returns (address) {
-        return _diamondImplementation;
-    }
-
-    function withdraw() external {
+    function withdraw() external onlyOwner {
         uint256 balance = address(this).balance;
         require(balance > 0, "Not enough to withdraw");
 
@@ -89,12 +80,6 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
 
     function setSigner(address signer) external onlyOwner {
         _signer = signer;
-    }
-
-    function setDiamondImplementation(
-        address implementation
-    ) external onlyOwner {
-        _diamondImplementation = implementation;
     }
 
     function setRate(address collection, uint256 rate) external onlyOwner {
@@ -126,14 +111,15 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         require(_signer != address(0), "Signer not set");
         require(!_verifiedCollections[collectionId_], "Already created");
         require(
-            keccak256(abi.encodePacked(collectionId_, feeRate_))
+            keccak256(abi.encodePacked(collectionId_, feeRate_, block.chainid))
                 .toEthSignedMessageHash()
                 .recover(signature_) == _signer,
             "Invalid signature"
         );
-        address deployed = ClonesUpgradeable.clone(_diamondImplementation);
-        IDiamondCollection collection = IDiamondCollection(deployed);
-        collection.initialize(
+
+        _verifiedCollections[collectionId_] = true;
+
+        DiamondCollection collection = new DiamondCollection(
             _msgSender(),
             treasury_,
             royalty_,
@@ -143,10 +129,13 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
             apps_
         );
 
-        _collections[deployed] = Collection(feeRate_, FeeType.Seller, true);
-        _verifiedCollections[collectionId_] = true;
+        _collections[address(collection)] = Collection(
+            feeRate_,
+            FeeType.Seller,
+            true
+        );
 
-        emit DiamondCreated(deployed, collectionId_);
+        emit DiamondCreated(address(collection), collectionId_);
     }
 
     receive() external payable {}
