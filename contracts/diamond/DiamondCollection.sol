@@ -12,7 +12,7 @@ contract DiamondCollection {
         address owner,
         address treasury,
         address royalty,
-        uint96 royaltyFee,
+        uint16 royaltyBps,
         string memory name,
         string memory symbol,
         bytes32[] memory apps
@@ -35,12 +35,12 @@ contract DiamondCollection {
             facetCuts,
             core.implementation,
             abi.encodeWithSignature(
-                "_initialize(address,string,string,address,uint96)",
+                "_initialize(address,string,string,address,uint16)",
                 owner,
                 name,
                 symbol,
                 royalty,
-                royaltyFee
+                royaltyBps
             )
         );
     }

@@ -103,7 +103,7 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         bytes calldata signature_,
         address treasury_,
         address royalty_,
-        uint96 royaltyFee_,
+        uint16 royaltyBps_,
         string memory name_,
         string memory symbol_,
         bytes32[] calldata apps_
@@ -123,7 +123,7 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
             _msgSender(),
             treasury_,
             royalty_,
-            royaltyFee_,
+            royaltyBps_,
             name_,
             symbol_,
             apps_

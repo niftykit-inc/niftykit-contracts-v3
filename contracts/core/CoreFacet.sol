@@ -2,8 +2,10 @@
 pragma solidity ^0.8.19;
 
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import {ERC2981Upgradeable} from "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
 import {ERC721AUpgradeable} from "erc721a-upgradeable/contracts/ERC721AUpgradeable.sol";
+import {ERC2981} from "@solidstate/contracts/token/common/ERC2981/ERC2981.sol";
+import {ERC2981Storage} from "@solidstate/contracts/token/common/ERC2981/ERC2981Storage.sol";
+import {IERC165} from "@solidstate/contracts/interfaces/IERC165.sol";
 import {OperatorFilterer} from "closedsea/src/OperatorFilterer.sol";
 import {MinimalOwnableRoles} from "../internals/MinimalOwnableRoles.sol";
 import {INiftyKitAppRegistry} from "../interfaces/INiftyKitAppRegistry.sol";
@@ -15,8 +17,8 @@ import {CoreStorage} from "./CoreStorage.sol";
 
 contract CoreFacet is
     ERC721AUpgradeable,
-    ERC2981Upgradeable,
     MinimalOwnableRoles,
+    ERC2981,
     OperatorFilterer,
     DiamondLoupeFacet
 {
@@ -41,11 +43,14 @@ contract CoreFacet is
         string calldata name_,
         string calldata symbol_,
         address royalty_,
-        uint96 royaltyFee_
+        uint16 royaltyFee_
     ) external initializerERC721A {
         __ERC721A_init(name_, symbol_);
-        _setDefaultRoyalty(royalty_, royaltyFee_);
         _initializeOwner(owner_);
+
+        ERC2981Storage.Layout storage layout = ERC2981Storage.layout();
+        layout.defaultRoyaltyBPS = royaltyFee_;
+        layout.defaultRoyaltyReceiver = royalty_;
     }
 
     function setBaseURI(
@@ -63,48 +68,6 @@ contract CoreFacet is
             isValue,
             newBaseURI
         );
-    }
-
-    function setTransferStatus(
-        CoreStorage.Transfer status
-    ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
-        CoreStorage.layout()._transferStatus = status;
-    }
-
-    function setOperatorFilteringEnabled(
-        bool isEnabled
-    ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
-        if (isEnabled) _registerForOperatorFiltering();
-        CoreStorage.layout()._operatorFilteringEnabled = isEnabled;
-    }
-
-    function setAllowedOperator(
-        address operator,
-        bool isAllowed
-    ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
-        CoreStorage.layout()._allowedOperators[operator] = isAllowed;
-    }
-
-    function setBlockedTokenId(
-        uint256 tokenId,
-        bool isBlocked
-    ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
-        CoreStorage.layout()._blockedTokenIds[tokenId] = isBlocked;
-    }
-
-    function setDefaultRoyalty(
-        address receiver,
-        uint96 feeNumerator
-    ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
-        _setDefaultRoyalty(receiver, feeNumerator);
-    }
-
-    function setTokenRoyalty(
-        uint256 tokenId,
-        address receiver,
-        uint96 feeNumerator
-    ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {
-        _setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
 
     function setTreasury(address newTreasury) external onlyOwner {
@@ -133,18 +96,6 @@ contract CoreFacet is
 
     function removeApp(bytes32 name, bytes memory data) external onlyOwner {
         _removeApp(name, address(this), data);
-    }
-
-    function isAllowedOperator(address operator) external view returns (bool) {
-        return CoreStorage.layout()._allowedOperators[operator];
-    }
-
-    function isBlockedTokenId(uint256 tokenId) external view returns (bool) {
-        return CoreStorage.layout()._blockedTokenIds[tokenId];
-    }
-
-    function operatorFilteringEnabled() external view returns (bool) {
-        return CoreStorage.layout()._operatorFilteringEnabled;
     }
 
     function isApprovedForAll(
@@ -330,9 +281,10 @@ contract CoreFacet is
         public
         view
         virtual
-        override(DiamondLoupeFacet, ERC721AUpgradeable, ERC2981Upgradeable)
+        override(DiamondLoupeFacet, ERC721AUpgradeable, IERC165)
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
+        return ds.supportedInterfaces[interfaceId];
     }
 }
