@@ -3,8 +3,8 @@ import { Signer, Wallet } from "ethers";
 import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
-  DiamondCollection,
-  DiamondCollection__factory,
+  CoreFacet,
+  CoreFacet__factory,
   DropFacet,
   DropFacet__factory,
   NiftyKitAppRegistry,
@@ -17,9 +17,9 @@ import {
   createDropFacet,
   getInterfaceId,
   getSelectors,
-  createImplementation,
   createExampleFacet,
   generateSigner,
+  createCoreFacet,
 } from "./utils/niftykit";
 
 const salesParam = [200, 150, 100, ethers.utils.parseEther("0.01")] as const;
@@ -29,17 +29,28 @@ describe("DropFacet", function () {
   let appRegistry: NiftyKitAppRegistry;
   let niftyKitV3: NiftyKitV3;
   let dropFacet: DropFacet;
-  let implementation: DiamondCollection;
+  let coreFacet: CoreFacet;
   let signer: Wallet;
   const feeRate = 500;
 
   before(async function () {
     accounts = await ethers.getSigners();
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
-    implementation = await createImplementation(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
+    coreFacet = await createCoreFacet(accounts[0]);
     signer = generateSigner();
     const exampleFacet = await createExampleFacet(accounts[0]);
+
+    // register core
+    await appRegistry.setCore(
+      coreFacet.address,
+      [
+        "0x80ac58cd", // ERC721
+        "0x2a55205a", // ERC2981 (royalty)
+        "0x7f5828d0", // ERC173 (ownable)
+      ],
+      getSelectors(coreFacet.interface)
+    );
 
     // register apps
     await appRegistry.registerApp(
@@ -61,7 +72,6 @@ describe("DropFacet", function () {
     niftyKitV3 = await createNiftyKitV3(
       accounts[0],
       appRegistry.address,
-      implementation.address,
       signer.address
     );
   });
@@ -70,7 +80,6 @@ describe("DropFacet", function () {
     niftyKitV3 = await createNiftyKitV3(
       accounts[0],
       appRegistry.address,
-      implementation.address,
       signer.address
     );
   });
@@ -102,11 +111,8 @@ describe("DropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.owner()).to.eq(await accounts[0].getAddress());
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await core.owner()).to.eq(await accounts[0].getAddress());
   });
 
   it("should be able to start the drop", async function () {
@@ -793,11 +799,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3].sub(sellerAmount.add(buyerAmount)));
 
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    await diamondCollection.withdraw();
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    await core.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
@@ -877,11 +880,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3]);
 
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    await diamondCollection.withdraw();
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    await core.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
@@ -961,11 +961,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3].sub(sellerAmount));
 
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    await diamondCollection.withdraw();
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
+    await core.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)

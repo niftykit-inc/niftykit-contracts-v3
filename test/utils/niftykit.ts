@@ -6,13 +6,15 @@ import {
   CoreFacet__factory,
   NiftyKitAppRegistry,
   NiftyKitAppRegistry__factory,
-  DiamondCollection__factory,
   NiftyKitV3,
   NiftyKitV3__factory,
   ExampleFacet__factory,
   MockERC20__factory,
   ApeDropFacet__factory,
   MockOperator__factory,
+  OperatorControlsFacet__factory,
+  BlockTokensFacet__factory,
+  RoyaltyControlsFacet__factory,
 } from "../../typechain-types";
 
 export async function createNiftyKitV3(
@@ -36,13 +38,6 @@ export async function createNiftyKitAppRegistry(signer: Signer) {
   return res;
 }
 
-export async function createImplementation(signer: Signer) {
-  const factory = new DiamondCollection__factory(signer);
-  const facet = await factory.deploy();
-  const res = await facet.deployed();
-  return res;
-}
-
 export async function createDropFacet(signer: Signer) {
   const factory = new DropFacet__factory(signer);
   const facet = await factory.deploy();
@@ -52,6 +47,27 @@ export async function createDropFacet(signer: Signer) {
 
 export async function createEditionFacet(signer: Signer) {
   const factory = new EditionFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createOperatorControlsFacet(signer: Signer) {
+  const factory = new OperatorControlsFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createBlockTokensFacet(signer: Signer) {
+  const factory = new BlockTokensFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createRoyaltyControlsFacet(signer: Signer) {
+  const factory = new RoyaltyControlsFacet__factory(signer);
   const facet = await factory.deploy();
   const res = await facet.deployed();
   return res;

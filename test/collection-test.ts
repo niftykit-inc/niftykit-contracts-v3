@@ -3,13 +3,16 @@ import { Signer, Wallet } from "ethers";
 import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
+  BlockTokensFacet,
+  BlockTokensFacet__factory,
   CoreFacet,
-  DiamondCollection,
-  DiamondCollection__factory,
+  CoreFacet__factory,
   DropFacet,
   DropFacet__factory,
   NiftyKitAppRegistry,
   NiftyKitV3,
+  OperatorControlsFacet,
+  OperatorControlsFacet__factory,
 } from "../typechain-types";
 import {
   createNiftyKitV3,
@@ -17,11 +20,12 @@ import {
   createDropFacet,
   getInterfaceId,
   getSelectors,
-  createImplementation,
   createExampleFacet,
   generateSigner,
   createMockOperator,
   createCoreFacet,
+  createOperatorControlsFacet,
+  createBlockTokensFacet,
 } from "./utils/niftykit";
 
 const salesParam = [200, 150, 100, ethers.utils.parseEther("0.01")] as const;
@@ -32,23 +36,29 @@ describe("DiamondCollection", function () {
   let niftyKitV3: NiftyKitV3;
   let dropFacet: DropFacet;
   let coreFacet: CoreFacet;
-  let implementation: DiamondCollection;
+  let operatorControlsFacet: OperatorControlsFacet;
+  let blockTokensFacet: BlockTokensFacet;
   let signer: Wallet;
   const feeRate = 500;
 
   before(async function () {
     accounts = await ethers.getSigners();
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
-    implementation = await createImplementation(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
     coreFacet = await createCoreFacet(accounts[0]);
+    operatorControlsFacet = await createOperatorControlsFacet(accounts[0]);
+    blockTokensFacet = await createBlockTokensFacet(accounts[0]);
     signer = generateSigner();
     const exampleFacet = await createExampleFacet(accounts[0]);
 
     // register core
     await appRegistry.setCore(
       coreFacet.address,
-      [getInterfaceId(coreFacet.interface)], // change this
+      [
+        "0x80ac58cd", // ERC721
+        "0x2a55205a", // ERC2981 (royalty)
+        "0x7f5828d0", // ERC173 (ownable)
+      ],
       getSelectors(coreFacet.interface)
     );
 
@@ -69,10 +79,25 @@ describe("DiamondCollection", function () {
       1
     );
 
+    await appRegistry.registerApp(
+      ethers.utils.id("operatorControls"),
+      operatorControlsFacet.address,
+      getInterfaceId(operatorControlsFacet.interface),
+      getSelectors(operatorControlsFacet.interface),
+      1
+    );
+
+    await appRegistry.registerApp(
+      ethers.utils.id("blockTokens"),
+      blockTokensFacet.address,
+      getInterfaceId(blockTokensFacet.interface),
+      getSelectors(blockTokensFacet.interface),
+      1
+    );
+
     niftyKitV3 = await createNiftyKitV3(
       accounts[0],
       appRegistry.address,
-      implementation.address,
       signer.address
     );
   });
@@ -81,7 +106,6 @@ describe("DiamondCollection", function () {
     niftyKitV3 = await createNiftyKitV3(
       accounts[0],
       appRegistry.address,
-      implementation.address,
       signer.address
     );
   });
@@ -112,20 +136,13 @@ describe("DiamondCollection", function () {
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
 
-    expect(await diamondCollection.treasury()).to.equal(
-      await accounts[0].getAddress()
-    );
+    expect(await core.treasury()).to.equal(await accounts[0].getAddress());
 
-    await diamondCollection.setTreasury(accounts[1].getAddress());
+    await core.setTreasury(accounts[1].getAddress());
 
-    expect(await diamondCollection.treasury()).to.equal(
-      await accounts[1].getAddress()
-    );
+    expect(await core.treasury()).to.equal(await accounts[1].getAddress());
   });
 
   it("should be able to withdraw after sale", async function () {
@@ -158,17 +175,14 @@ describe("DiamondCollection", function () {
       diamondAddress,
       accounts[0]
     );
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
     expect(await dropCollection.saleActive()).to.be.false;
 
     await dropCollection.startSale(...salesParam, false);
 
     expect(await dropCollection.saleActive()).to.be.true;
 
-    await expect(diamondCollection.withdraw()).to.be.revertedWith("0 balance");
+    await expect(core.withdraw()).to.be.revertedWith("0 balance");
 
     const txMint = await dropCollection
       .connect(accounts[1])
@@ -184,7 +198,7 @@ describe("DiamondCollection", function () {
 
     expect(await dropCollection.dropRevenue()).to.equal(salesParam[3].mul(2));
 
-    await diamondCollection.withdraw();
+    await core.withdraw();
   });
 
   it("should be override tokenURI", async function () {
@@ -217,10 +231,7 @@ describe("DiamondCollection", function () {
       diamondAddress,
       accounts[0]
     );
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
 
     expect(await dropCollection.saleActive()).to.be.false;
 
@@ -242,17 +253,17 @@ describe("DiamondCollection", function () {
 
     expect(await dropCollection.dropRevenue()).to.equal(salesParam[3].mul(2));
 
-    expect(await diamondCollection.tokenURI(1)).to.equal("");
+    expect(await core.tokenURI(1)).to.equal("");
 
-    await diamondCollection.setBaseURI("foo");
-    expect(await diamondCollection.tokenURI(1)).to.equal("foo1");
+    await core.setBaseURI("foo");
+    expect(await core.tokenURI(1)).to.equal("foo1");
 
-    await diamondCollection.setTokenURI(1, true, "foobar");
-    expect(await diamondCollection.tokenURI(1)).to.equal("foobar");
+    await core.setTokenURI(1, true, "foobar");
+    expect(await core.tokenURI(1)).to.equal("foobar");
 
-    expect(await diamondCollection.tokenURI(2)).to.equal("foo2");
+    expect(await core.tokenURI(2)).to.equal("foo2");
 
-    await expect(diamondCollection.tokenURI(3)).to.be.revertedWith(
+    await expect(core.tokenURI(3)).to.be.revertedWith(
       "URIQueryForNonexistentToken()"
     );
   });
@@ -276,23 +287,23 @@ describe("DiamondCollection", function () {
       500,
       "NAME",
       "SYMBOL",
-      [ethers.utils.id("drop")]
+      [ethers.utils.id("drop"), ethers.utils.id("operatorControls")]
     );
     const createDiamondReceipt = await createDiamondTx.wait();
     const createdEvent = createDiamondReceipt.events?.find(
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
-    const diamondCollection = DiamondCollection__factory.connect(
+    const operatorControls = OperatorControlsFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    expect(await diamondCollection.operatorFilteringEnabled()).to.be.false;
-    await diamondCollection.setOperatorFilteringEnabled(true);
-    expect(await diamondCollection.operatorFilteringEnabled()).to.be.true;
-    await diamondCollection.setOperatorFilteringEnabled(false);
-    expect(await diamondCollection.operatorFilteringEnabled()).to.be.false;
+    expect(await operatorControls.operatorFilteringEnabled()).to.be.false;
+    await operatorControls.setOperatorFilteringEnabled(true);
+    expect(await operatorControls.operatorFilteringEnabled()).to.be.true;
+    await operatorControls.setOperatorFilteringEnabled(false);
+    expect(await operatorControls.operatorFilteringEnabled()).to.be.false;
   });
 
   it("should be set transfer status: block all", async function () {
@@ -315,7 +326,7 @@ describe("DiamondCollection", function () {
       500,
       "NAME",
       "SYMBOL",
-      [ethers.utils.id("drop")]
+      [ethers.utils.id("drop"), ethers.utils.id("operatorControls")]
     );
     const createDiamondReceipt = await createDiamondTx.wait();
     const createdEvent = createDiamondReceipt.events?.find(
@@ -326,10 +337,7 @@ describe("DiamondCollection", function () {
       diamondAddress,
       accounts[0]
     );
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
 
     expect(await dropCollection.saleActive()).to.be.false;
 
@@ -349,7 +357,7 @@ describe("DiamondCollection", function () {
     expect(transferEvent).to.be.a("object");
 
     // Transfer tokenId 1
-    await diamondCollection
+    await core
       .connect(accounts[1])
       ["safeTransferFrom(address,address,uint256)"](
         await accounts[1].getAddress(),
@@ -358,15 +366,13 @@ describe("DiamondCollection", function () {
       );
 
     expect(
-      await diamondCollection
+      await core
         .connect(accounts[1])
         .isApprovedForAll(await accounts[1].getAddress(), mockOperator.address)
     ).to.be.false;
 
     // approve the operator
-    diamondCollection
-      .connect(accounts[1])
-      .setApprovalForAll(mockOperator.address, true);
+    core.connect(accounts[1]).setApprovalForAll(mockOperator.address, true);
 
     mockOperator
       .connect(accounts[1])
@@ -377,11 +383,16 @@ describe("DiamondCollection", function () {
         2
       );
 
+    const operatorControls = OperatorControlsFacet__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
+
     // Block all
-    await diamondCollection.setTransferStatus(2);
+    await operatorControls.setTransferStatus(2);
 
     await expect(
-      diamondCollection
+      core
         .connect(accounts[1])
         ["safeTransferFrom(address,address,uint256)"](
           await accounts[1].getAddress(),
@@ -402,9 +413,9 @@ describe("DiamondCollection", function () {
     ).to.be.revertedWith("Transfers not allowed");
 
     // Allow all
-    await diamondCollection.setTransferStatus(0);
+    await operatorControls.setTransferStatus(0);
 
-    await diamondCollection
+    await core
       .connect(accounts[1])
       ["safeTransferFrom(address,address,uint256)"](
         await accounts[1].getAddress(),
@@ -433,7 +444,7 @@ describe("DiamondCollection", function () {
       500,
       "NAME",
       "SYMBOL",
-      [ethers.utils.id("drop")]
+      [ethers.utils.id("drop"), ethers.utils.id("operatorControls")]
     );
     const createDiamondReceipt = await createDiamondTx.wait();
     const createdEvent = createDiamondReceipt.events?.find(
@@ -444,10 +455,7 @@ describe("DiamondCollection", function () {
       diamondAddress,
       accounts[0]
     );
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
 
     expect(await dropCollection.saleActive()).to.be.false;
 
@@ -467,7 +475,7 @@ describe("DiamondCollection", function () {
     expect(transferEvent).to.be.a("object");
 
     // Transfer tokenId 1
-    await diamondCollection
+    await core
       .connect(accounts[1])
       ["safeTransferFrom(address,address,uint256)"](
         await accounts[1].getAddress(),
@@ -475,10 +483,15 @@ describe("DiamondCollection", function () {
         1
       );
 
-    // Allowed Operators only, but transfers should be allowed
-    await diamondCollection.setTransferStatus(1);
+    const operatorControls = OperatorControlsFacet__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
 
-    await diamondCollection
+    // Allowed Operators only, but transfers should be allowed
+    await operatorControls.setTransferStatus(1);
+
+    await core
       .connect(accounts[1])
       ["safeTransferFrom(address,address,uint256)"](
         await accounts[1].getAddress(),
@@ -487,26 +500,24 @@ describe("DiamondCollection", function () {
       );
 
     expect(
-      await diamondCollection
+      await operatorControls
         .connect(accounts[1])
         .isAllowedOperator(mockOperator.address)
     ).to.be.false;
 
     expect(
-      await diamondCollection
+      await core
         .connect(accounts[1])
         .isApprovedForAll(await accounts[1].getAddress(), mockOperator.address)
     ).to.be.false;
 
     // should fail from approving
     await expect(
-      diamondCollection
-        .connect(accounts[1])
-        .setApprovalForAll(mockOperator.address, true)
+      core.connect(accounts[1]).setApprovalForAll(mockOperator.address, true)
     ).to.be.revertedWith("Transfers not allowed");
 
     await expect(
-      diamondCollection.connect(accounts[1]).approve(mockOperator.address, 3)
+      core.connect(accounts[1]).approve(mockOperator.address, 3)
     ).to.be.revertedWith("Transfers not allowed");
 
     await expect(
@@ -521,16 +532,16 @@ describe("DiamondCollection", function () {
     ).to.be.revertedWith("Transfers not allowed");
 
     // should allow
-    await diamondCollection.setAllowedOperator(mockOperator.address, true);
+    await operatorControls.setAllowedOperator(mockOperator.address, true);
 
     expect(
-      await diamondCollection
+      await operatorControls
         .connect(accounts[1])
         .isAllowedOperator(mockOperator.address)
     ).to.be.true;
 
     expect(
-      await diamondCollection
+      await core
         .connect(accounts[1])
         .isApprovedForAll(await accounts[1].getAddress(), mockOperator.address)
     ).to.be.true;
@@ -565,7 +576,11 @@ describe("DiamondCollection", function () {
       500,
       "NAME",
       "SYMBOL",
-      [ethers.utils.id("drop")]
+      [
+        ethers.utils.id("drop"),
+        ethers.utils.id("operatorControls"),
+        ethers.utils.id("blockTokens"),
+      ]
     );
     const createDiamondReceipt = await createDiamondTx.wait();
     const createdEvent = createDiamondReceipt.events?.find(
@@ -576,10 +591,7 @@ describe("DiamondCollection", function () {
       diamondAddress,
       accounts[0]
     );
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const core = CoreFacet__factory.connect(diamondAddress, accounts[0]);
 
     expect(await dropCollection.saleActive()).to.be.false;
 
@@ -599,7 +611,7 @@ describe("DiamondCollection", function () {
     expect(transferEvent).to.be.a("object");
 
     // Transfer tokenId 1
-    await diamondCollection
+    await core
       .connect(accounts[1])
       ["safeTransferFrom(address,address,uint256)"](
         await accounts[1].getAddress(),
@@ -608,7 +620,7 @@ describe("DiamondCollection", function () {
       );
 
     // should work
-    await diamondCollection
+    await core
       .connect(accounts[1])
       ["safeTransferFrom(address,address,uint256)"](
         await accounts[1].getAddress(),
@@ -616,13 +628,17 @@ describe("DiamondCollection", function () {
         2
       );
 
+    const blockTokens = BlockTokensFacet__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
     // block 3
-    expect(await diamondCollection.isBlockedTokenId(3)).to.be.false;
-    await diamondCollection.setBlockedTokenId(3, true);
-    expect(await diamondCollection.isBlockedTokenId(3)).to.be.true;
+    expect(await blockTokens.isBlockedTokenId(3)).to.be.false;
+    await blockTokens.setBlockedTokenId(3, true);
+    expect(await blockTokens.isBlockedTokenId(3)).to.be.true;
 
     await expect(
-      diamondCollection
+      core
         .connect(accounts[1])
         ["safeTransferFrom(address,address,uint256)"](
           await accounts[1].getAddress(),

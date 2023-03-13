@@ -43,11 +43,13 @@ describe("NiftyKitV3", function () {
     // register core
     await appRegistry.setCore(
       coreFacet.address,
-      [getInterfaceId(coreFacet.interface)], // change this
+      [
+        "0x80ac58cd", // ERC721
+        "0x2a55205a", // ERC2981 (royalty)
+        "0x7f5828d0", // ERC173 (ownable)
+      ],
       getSelectors(coreFacet.interface)
     );
-
-    console.log(getSelectors(coreFacet.interface));
 
     // register apps
     await appRegistry.registerApp(
