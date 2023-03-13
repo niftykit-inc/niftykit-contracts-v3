@@ -43,13 +43,13 @@ contract CoreFacet is
         string calldata name_,
         string calldata symbol_,
         address royalty_,
-        uint16 royaltyFee_
+        uint16 royaltyBps_
     ) external initializerERC721A {
         __ERC721A_init(name_, symbol_);
         _initializeOwner(owner_);
 
         ERC2981Storage.Layout storage layout = ERC2981Storage.layout();
-        layout.defaultRoyaltyBPS = royaltyFee_;
+        layout.defaultRoyaltyBPS = royaltyBps_;
         layout.defaultRoyaltyReceiver = royalty_;
     }
 
