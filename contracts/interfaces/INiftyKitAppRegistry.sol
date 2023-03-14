@@ -16,7 +16,14 @@ interface INiftyKitAppRegistry {
         uint8 version;
     }
 
-    function getApp(bytes32 identifier) external view returns (App memory);
+    /**
+     * Get App Facet by app name
+     * @param name app name
+     */
+    function getApp(bytes32 name) external view returns (App memory);
 
+    /**
+     * Get base Facet
+     */
     function getBase() external view returns (Base memory);
 }

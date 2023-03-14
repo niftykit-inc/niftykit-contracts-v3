@@ -4,9 +4,10 @@ pragma solidity ^0.8.19;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {INiftyKitAppRegistry} from "./interfaces/INiftyKitAppRegistry.sol";
 
-contract NiftyKitAppRegistry is OwnableUpgradeable, INiftyKitAppRegistry {
-    Base internal _base;
-    mapping(bytes32 => App) internal _apps;
+contract NiftyKitAppRegistry is INiftyKitAppRegistry, OwnableUpgradeable {
+    Base private _base;
+
+    mapping(bytes32 => App) private _apps;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {

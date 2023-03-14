@@ -136,7 +136,7 @@ const deployFn = async function (hre: HardhatRuntimeEnvironment) {
   }
 
   // setting base
-  console.log("Setting Core...");
+  console.log("Setting Base...");
   const setBaseTx = await appRegistry.setBase(
     base.address,
     [

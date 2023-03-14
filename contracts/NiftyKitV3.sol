@@ -12,6 +12,20 @@ import {INiftyKitV3} from "./interfaces/INiftyKitV3.sol";
 import {IERC173} from "./interfaces/IERC173.sol";
 
 contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
+    enum FeeType {
+        Seller,
+        Buyer,
+        Split
+    }
+
+    struct Collection {
+        uint256 feeRate;
+        FeeType feeType;
+        bool exists;
+    }
+
+    event DiamondCreated(address indexed diamondAddress, string collectionId);
+
     using AddressUpgradeable for address;
     using ECDSAUpgradeable for bytes32;
 
@@ -129,13 +143,15 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
             apps_
         );
 
-        _collections[address(collection)] = Collection(
+        address deployed = address(collection);
+
+        _collections[deployed] = Collection(
             feeRate_,
             FeeType.Seller,
             true
         );
 
-        emit DiamondCreated(address(collection), collectionId_);
+        emit DiamondCreated(deployed, collectionId_);
     }
 
     receive() external payable {}
