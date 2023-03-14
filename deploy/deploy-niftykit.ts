@@ -143,6 +143,8 @@ const deployFn = async function (hre: HardhatRuntimeEnvironment) {
       "0x80ac58cd", // ERC721
       "0x2a55205a", // ERC2981 (royalty)
       "0x7f5828d0", // ERC173 (ownable)
+      "0x01ffc9a7", // ERC165 (introspection)
+      "0x48e2b093", // DiamondLoupe
     ],
     getSelectors(base.interface),
     1
