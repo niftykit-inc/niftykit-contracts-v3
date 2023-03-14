@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import {ERC721AUpgradeable} from "erc721a-upgradeable/contracts/ERC721AUpgradeable.sol";
-import {ERC721A__InitializableStorage} from "erc721a-upgradeable/contracts/ERC721A__InitializableStorage.sol";
 import {ERC2981} from "@solidstate/contracts/token/common/ERC2981/ERC2981.sol";
 import {ERC2981Storage} from "@solidstate/contracts/token/common/ERC2981/ERC2981Storage.sol";
 import {IERC165} from "@solidstate/contracts/interfaces/IERC165.sol";
