@@ -1042,4 +1042,68 @@ describe("DropFacet", function () {
 
     expect(tokenId).to.be.equal(1);
   });
+
+  it("should not mint more than max supply", async function () {
+    const collectionId = "COLLECTION_ID_max_supply";
+    const signature = await signer.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
+        )
+      )
+    );
+    const createDiamondTx = await niftyKitV3.createDiamond(
+      collectionId,
+      feeRate,
+      signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
+      "NAME",
+      "SYMBOL",
+      [ethers.utils.id("drop")]
+    );
+    const createDiamondReceipt = await createDiamondTx.wait();
+    const createdEvent = createDiamondReceipt.events?.find(
+      (event) => event.event === "DiamondCreated"
+    ) as DiamondCreatedEvent;
+    const diamondAddress = createdEvent.args[0];
+    const dropCollection = DropFacet__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
+
+    expect(await dropCollection.saleActive()).to.be.false;
+
+    await dropCollection.startSale(
+      2, // max amount
+      2,
+      2,
+      ethers.utils.parseEther("0.01"),
+      false
+    );
+
+    expect(await dropCollection.saleActive()).to.be.true;
+
+    const txMint = await dropCollection
+      .connect(accounts[1])
+      .mintTo(await accounts[1].getAddress(), 2, {
+        value: ethers.utils.parseEther("0.01").mul(2),
+      });
+    const txMintReceipt = await txMint.wait();
+    const transferEvent = txMintReceipt.events?.find(
+      (event) => event.event === "Transfer"
+    );
+
+    expect(transferEvent).to.be.a("object");
+
+    expect(
+      dropCollection
+        .connect(accounts[1])
+        .mintTo(await accounts[1].getAddress(), 2, {
+          value: ethers.utils.parseEther("0.01").mul(2),
+        })
+    ).to.be.revertedWith("Exceeded max supply");
+  });
 });

@@ -166,4 +166,11 @@ contract DropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         _setAux(to, _getAux(to) + quantity);
         _mint(to, quantity);
     }
+
+    /**
+     * Need this for ERC721A, when we call `_totalSupply()` this is read from code.
+     */
+    function _startTokenId() internal pure override returns (uint256) {
+        return 1;
+    }
 }
