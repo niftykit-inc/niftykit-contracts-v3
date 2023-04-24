@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import { Signer, Wallet } from "ethers";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
-  DiamondCollection,
-  DiamondCollection__factory,
+  BaseFacet,
+  BaseFacet__factory,
   DropFacet,
   DropFacet__factory,
   NiftyKitAppRegistry,
@@ -17,9 +17,9 @@ import {
   createDropFacet,
   getInterfaceId,
   getSelectors,
-  createImplementation,
   createExampleFacet,
   generateSigner,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 const salesParam = [200, 150, 100, ethers.utils.parseEther("0.01")] as const;
@@ -29,17 +29,29 @@ describe("DropFacet", function () {
   let appRegistry: NiftyKitAppRegistry;
   let niftyKitV3: NiftyKitV3;
   let dropFacet: DropFacet;
-  let implementation: DiamondCollection;
+  let baseFacet: BaseFacet;
   let signer: Wallet;
   const feeRate = 500;
 
   before(async function () {
     accounts = await ethers.getSigners();
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
-    implementation = await createImplementation(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
+    baseFacet = await createBaseFacet(accounts[0]);
     signer = generateSigner();
     const exampleFacet = await createExampleFacet(accounts[0]);
+
+    // register base
+    await appRegistry.setBase(
+      baseFacet.address,
+      [
+        "0x80ac58cd", // ERC721
+        "0x2a55205a", // ERC2981 (royalty)
+        "0x7f5828d0", // ERC173 (ownable)
+      ],
+      getSelectors(baseFacet.interface),
+      1
+    );
 
     // register apps
     await appRegistry.registerApp(
@@ -61,7 +73,6 @@ describe("DropFacet", function () {
     niftyKitV3 = await createNiftyKitV3(
       accounts[0],
       appRegistry.address,
-      implementation.address,
       signer.address
     );
   });
@@ -70,7 +81,6 @@ describe("DropFacet", function () {
     niftyKitV3 = await createNiftyKitV3(
       accounts[0],
       appRegistry.address,
-      implementation.address,
       signer.address
     );
   });
@@ -80,8 +90,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -102,11 +112,8 @@ describe("DropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.owner()).to.eq(await accounts[0].getAddress());
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.owner()).to.eq(await accounts[0].getAddress());
   });
 
   it("should be able to start the drop", async function () {
@@ -114,8 +121,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -168,8 +175,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -241,8 +248,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -352,8 +359,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -421,8 +428,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -487,8 +494,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -553,8 +560,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -619,8 +626,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -698,8 +705,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -740,8 +747,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -793,11 +800,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3].sub(sellerAmount.add(buyerAmount)));
 
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    await diamondCollection.withdraw();
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    await base.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
@@ -819,8 +823,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -877,11 +881,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3]);
 
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    await diamondCollection.withdraw();
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    await base.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
@@ -903,8 +904,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -961,11 +962,8 @@ describe("DropFacet", function () {
       await dropCollection.provider.getBalance(dropCollection.address)
     ).to.be.eq(salesParam[3].sub(sellerAmount));
 
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    await diamondCollection.withdraw();
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    await base.withdraw();
 
     expect(
       await dropCollection.provider.getBalance(dropCollection.address)
@@ -987,8 +985,8 @@ describe("DropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -1043,5 +1041,69 @@ describe("DropFacet", function () {
     const tokenId = transferEvent!.args![2].toNumber();
 
     expect(tokenId).to.be.equal(1);
+  });
+
+  it("should not mint more than max supply", async function () {
+    const collectionId = "COLLECTION_ID_max_supply";
+    const signature = await signer.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
+        )
+      )
+    );
+    const createDiamondTx = await niftyKitV3.createDiamond(
+      collectionId,
+      feeRate,
+      signature,
+      await accounts[0].getAddress(),
+      await accounts[0].getAddress(),
+      500,
+      "NAME",
+      "SYMBOL",
+      [ethers.utils.id("drop")]
+    );
+    const createDiamondReceipt = await createDiamondTx.wait();
+    const createdEvent = createDiamondReceipt.events?.find(
+      (event) => event.event === "DiamondCreated"
+    ) as DiamondCreatedEvent;
+    const diamondAddress = createdEvent.args[0];
+    const dropCollection = DropFacet__factory.connect(
+      diamondAddress,
+      accounts[0]
+    );
+
+    expect(await dropCollection.saleActive()).to.be.false;
+
+    await dropCollection.startSale(
+      2, // max amount
+      2,
+      2,
+      ethers.utils.parseEther("0.01"),
+      false
+    );
+
+    expect(await dropCollection.saleActive()).to.be.true;
+
+    const txMint = await dropCollection
+      .connect(accounts[1])
+      .mintTo(await accounts[1].getAddress(), 2, {
+        value: ethers.utils.parseEther("0.01").mul(2),
+      });
+    const txMintReceipt = await txMint.wait();
+    const transferEvent = txMintReceipt.events?.find(
+      (event) => event.event === "Transfer"
+    );
+
+    expect(transferEvent).to.be.a("object");
+
+    expect(
+      dropCollection
+        .connect(accounts[1])
+        .mintTo(await accounts[1].getAddress(), 2, {
+          value: ethers.utils.parseEther("0.01").mul(2),
+        })
+    ).to.be.revertedWith("Exceeded max supply");
   });
 });

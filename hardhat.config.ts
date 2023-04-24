@@ -27,7 +27,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.18",
+    version: "0.8.19",
     settings: {
       optimizer: {
         enabled: true,
@@ -82,6 +82,10 @@ const config: HardhatUserConfig = {
       arbitrumOne: "F77Y269K4K8YBGCMSCWVAS36WJ9WCD8879",
       arbitrumGoerli: "F77Y269K4K8YBGCMSCWVAS36WJ9WCD8879",
     },
+  },
+  gasReporter: {
+    currency: "USD",
+    coinmarketcap: "9ffa732d-998c-4c96-8966-958d38557ba5",
   },
 };
 

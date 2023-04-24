@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import { Signer, Wallet } from "ethers";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
-  DiamondCollection,
-  DiamondCollection__factory,
+  BaseFacet,
+  BaseFacet__factory,
   EditionFacet,
   EditionFacet__factory,
   NiftyKitAppRegistry,
@@ -16,10 +16,10 @@ import {
   createNiftyKitAppRegistry,
   getInterfaceId,
   getSelectors,
-  createImplementation,
   createExampleFacet,
   createEditionFacet,
   generateSigner,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 describe("EditionFacet", function () {
@@ -27,17 +27,29 @@ describe("EditionFacet", function () {
   let appRegistry: NiftyKitAppRegistry;
   let niftyKitV3: NiftyKitV3;
   let editionFacet: EditionFacet;
-  let implementation: DiamondCollection;
+  let baseFacet: BaseFacet;
   let signer: Wallet;
   const feeRate = 500;
 
   before(async function () {
     accounts = await ethers.getSigners();
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
-    implementation = await createImplementation(accounts[0]);
     editionFacet = await createEditionFacet(accounts[0]);
+    baseFacet = await createBaseFacet(accounts[0]);
     signer = generateSigner();
     const exampleFacet = await createExampleFacet(accounts[0]);
+
+    // register base
+    await appRegistry.setBase(
+      baseFacet.address,
+      [
+        "0x80ac58cd", // ERC721
+        "0x2a55205a", // ERC2981 (royalty)
+        "0x7f5828d0", // ERC173 (ownable)
+      ],
+      getSelectors(baseFacet.interface),
+      1
+    );
 
     // register apps
     await appRegistry.registerApp(
@@ -59,7 +71,6 @@ describe("EditionFacet", function () {
     niftyKitV3 = await createNiftyKitV3(
       accounts[0],
       appRegistry.address,
-      implementation.address,
       signer.address
     );
   });
@@ -69,8 +80,8 @@ describe("EditionFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -91,11 +102,8 @@ describe("EditionFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.owner()).to.eq(await accounts[0].getAddress());
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.owner()).to.eq(await accounts[0].getAddress());
   });
 
   it("should be able to create an edition", async function () {
@@ -103,8 +111,8 @@ describe("EditionFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -139,8 +147,8 @@ describe("EditionFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -195,8 +203,8 @@ describe("EditionFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -216,10 +224,7 @@ describe("EditionFacet", function () {
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const editionCollection = EditionFacet__factory.connect(
       diamondAddress,
       accounts[0]
@@ -239,8 +244,8 @@ describe("EditionFacet", function () {
     const goodSignature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256"],
-          [edition.nonce.add(editionId).toString()]
+          ["uint256", "uint256"],
+          [edition.nonce.add(editionId).toString(), network.config.chainId]
         )
       )
     );
@@ -252,8 +257,8 @@ describe("EditionFacet", function () {
     const badSignature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256"],
-          [edition.nonce.add(420).toString()]
+          ["uint256", "uint256"],
+          [edition.nonce.add(420).toString(), network.config.chainId]
         )
       )
     );
@@ -292,7 +297,7 @@ describe("EditionFacet", function () {
       mintResults.events!.filter((evt) => evt.event === "Transfer").length
     ).to.equals(1);
 
-    expect(await diamondCollection.tokenURI(1)).to.equals("foo");
+    expect(await base.tokenURI(1)).to.equals("foo");
 
     await editionCollection.setEditionActive(editionId, false);
 
@@ -316,8 +321,8 @@ describe("EditionFacet", function () {
     const goodUpdatedSignature = await accounts[1].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256"],
-          [edition.nonce.add(editionId).toString()]
+          ["uint256", "uint256"],
+          [edition.nonce.add(editionId).toString(), network.config.chainId]
         )
       )
     );
@@ -359,8 +364,8 @@ describe("EditionFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -380,10 +385,7 @@ describe("EditionFacet", function () {
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const editionCollection = EditionFacet__factory.connect(
       diamondAddress,
       accounts[0]
@@ -409,8 +411,8 @@ describe("EditionFacet", function () {
     const goodSignature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256"],
-          [edition.nonce.add(editionId).toString()]
+          ["uint256", "uint256"],
+          [edition.nonce.add(editionId).toString(), network.config.chainId]
         )
       )
     );
@@ -445,7 +447,7 @@ describe("EditionFacet", function () {
       mintResults.events!.filter((evt) => evt.event === "Transfer").length
     ).to.equals(1);
 
-    expect(await diamondCollection.tokenURI(1)).to.equals("foo");
+    expect(await base.tokenURI(1)).to.equals("foo");
     expect(await editionCollection.editionRevenue()).to.be.equal(
       ethers.utils.parseEther("0.01")
     );
@@ -456,8 +458,8 @@ describe("EditionFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -477,10 +479,7 @@ describe("EditionFacet", function () {
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
-    const diamondCollection = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const editionCollection = EditionFacet__factory.connect(
       diamondAddress,
       accounts[0]
@@ -516,8 +515,8 @@ describe("EditionFacet", function () {
     const goodSignature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256"],
-          [edition.nonce.add(editionId).toString()]
+          ["uint256", "uint256"],
+          [edition.nonce.add(editionId).toString(), network.config.chainId]
         )
       )
     );
@@ -536,6 +535,6 @@ describe("EditionFacet", function () {
       mintResults.events!.filter((evt) => evt.event === "Transfer").length
     ).to.equals(1);
 
-    expect(await diamondCollection.tokenURI(1)).to.equals("foo");
+    expect(await base.tokenURI(1)).to.equals("foo");
   });
 });

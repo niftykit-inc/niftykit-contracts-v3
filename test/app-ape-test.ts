@@ -1,12 +1,12 @@
 import { expect } from "chai";
 import { Signer, Wallet } from "ethers";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
   ApeDropFacet,
   ApeDropFacet__factory,
-  DiamondCollection,
-  DiamondCollection__factory,
+  BaseFacet,
+  BaseFacet__factory,
   DropFacet,
   DropFacet__factory,
   MockERC20,
@@ -20,10 +20,10 @@ import {
   createDropFacet,
   getInterfaceId,
   getSelectors,
-  createImplementation,
   createApeCoinFacet,
   createMockERC20,
   generateSigner,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 const salesParam = [200, 150, 100, ethers.utils.parseEther("0.01")] as const;
@@ -34,19 +34,31 @@ describe("ApeDropFacet", function () {
   let niftyKitV3: NiftyKitV3;
   let dropFacet: DropFacet;
   let apeDropFacet: ApeDropFacet;
+  let baseFacet: BaseFacet;
   let apeCoin: MockERC20;
-  let implementation: DiamondCollection;
   let signer: Wallet;
   const feeRate = 500;
 
   before(async function () {
     accounts = await ethers.getSigners();
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
-    implementation = await createImplementation(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
     apeDropFacet = await createApeCoinFacet(accounts[0]);
+    baseFacet = await createBaseFacet(accounts[0]);
     apeCoin = await createMockERC20(accounts[0]);
     signer = generateSigner();
+
+    // register base
+    await appRegistry.setBase(
+      baseFacet.address,
+      [
+        "0x80ac58cd", // ERC721
+        "0x2a55205a", // ERC2981 (royalty)
+        "0x7f5828d0", // ERC173 (ownable)
+      ],
+      getSelectors(baseFacet.interface),
+      1
+    );
 
     // register apps
     await appRegistry.registerApp(
@@ -68,7 +80,6 @@ describe("ApeDropFacet", function () {
     niftyKitV3 = await createNiftyKitV3(
       accounts[0],
       appRegistry.address,
-      implementation.address,
       signer.address
     );
   });
@@ -78,8 +89,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -100,17 +111,14 @@ describe("ApeDropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
-    expect(await diamond.owner()).to.eq(await accounts[0].getAddress());
+    expect(await base.owner()).to.eq(await accounts[0].getAddress());
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropCollection.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -127,8 +135,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -148,17 +156,14 @@ describe("ApeDropFacet", function () {
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
 
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -175,8 +180,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -196,16 +201,13 @@ describe("ApeDropFacet", function () {
       (event) => event.event === "DiamondCreated"
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -248,8 +250,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -273,16 +275,13 @@ describe("ApeDropFacet", function () {
       diamondAddress,
       accounts[0]
     );
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -342,8 +341,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -368,16 +367,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -438,8 +434,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -464,16 +460,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -532,8 +525,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -558,16 +551,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -625,8 +615,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -651,16 +641,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -718,8 +705,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -744,16 +731,13 @@ describe("ApeDropFacet", function () {
       accounts[0]
     );
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -829,8 +813,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -851,16 +835,13 @@ describe("ApeDropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
 
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropFacet.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -917,8 +898,8 @@ describe("ApeDropFacet", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -939,18 +920,15 @@ describe("ApeDropFacet", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent!.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
     const apeDropCollection = ApeDropFacet__factory.connect(
       diamondAddress,
       accounts[0]
     );
-    expect(await diamond.owner()).to.eq(await accounts[0].getAddress());
+    expect(await base.owner()).to.eq(await accounts[0].getAddress());
 
     // install apeDrop
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropCollection.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,
@@ -958,13 +936,13 @@ describe("ApeDropFacet", function () {
     );
 
     // uninstall apeDrop
-    await diamond["removeApp(bytes32,bytes)"](
+    await base["removeApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropCollection.interface.encodeFunctionData("finalizeApeDrop")
     );
 
     // install apeDrop again
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("ape"),
       apeDropCollection.interface.encodeFunctionData("initializeApeDrop", [
         apeCoin.address,

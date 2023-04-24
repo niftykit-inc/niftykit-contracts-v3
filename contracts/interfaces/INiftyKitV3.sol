@@ -1,31 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
 interface INiftyKitV3 {
-    enum FeeType {
-        Seller,
-        Buyer,
-        Split
-    }
-
-    struct Collection {
-        uint256 feeRate;
-        FeeType feeType;
-        bool exists;
-    }
-
-    /**
-     * @dev Emitted when diamond is created
-     */
-    event DiamondCreated(address indexed diamondAddress, string collectionId);
-
     /**
      * @dev Returns app registry address.
      */
     function appRegistry() external returns (address);
 
     /**
-     * @dev Returns the commission amount.
+     * @dev Returns the commission amount (sellerFee, buyerFee).
      */
     function commission(
         address collection,
@@ -33,7 +16,7 @@ interface INiftyKitV3 {
     ) external view returns (uint256, uint256);
 
     /**
-     * @dev Get fees by amount (per collection)
+     * @dev Get fees by amount (called from collection)
      */
     function getFees(uint256 amount) external view returns (uint256, uint256);
 }

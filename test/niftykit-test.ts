@@ -1,15 +1,15 @@
 import { expect } from "chai";
 import { Signer, Wallet } from "ethers";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { DiamondCreatedEvent } from "typechain-types/contracts/NiftyKitV3";
 import {
-  DiamondCollection,
-  DiamondCollection__factory,
+  BaseFacet,
   DropFacet,
   DropFacet__factory,
   ExampleFacet__factory,
   NiftyKitAppRegistry,
   NiftyKitV3,
+  BaseFacet__factory,
 } from "../typechain-types";
 import {
   createNiftyKitV3,
@@ -17,28 +17,40 @@ import {
   createDropFacet,
   getInterfaceId,
   getSelectors,
-  createImplementation,
   createExampleFacet,
   generateSigner,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 describe("NiftyKitV3", function () {
   let accounts: Signer[];
   let appRegistry: NiftyKitAppRegistry;
   let niftyKitV3: NiftyKitV3;
+  let baseFacet: BaseFacet;
   let dropFacet: DropFacet;
-  let implementation: DiamondCollection;
   let signer: Wallet;
   const feeRate = 500;
 
   before(async function () {
     accounts = await ethers.getSigners();
     appRegistry = await createNiftyKitAppRegistry(accounts[0]);
-    implementation = await createImplementation(accounts[0]);
     dropFacet = await createDropFacet(accounts[0]);
+    baseFacet = await createBaseFacet(accounts[0]);
     signer = generateSigner();
 
     const exampleFacet = await createExampleFacet(accounts[0]);
+
+    // register base
+    await appRegistry.setBase(
+      baseFacet.address,
+      [
+        "0x80ac58cd", // ERC721
+        "0x2a55205a", // ERC2981 (royalty)
+        "0x7f5828d0", // ERC173 (ownable)
+      ],
+      getSelectors(baseFacet.interface),
+      1
+    );
 
     // register apps
     await appRegistry.registerApp(
@@ -57,11 +69,7 @@ describe("NiftyKitV3", function () {
       1
     );
 
-    niftyKitV3 = await createNiftyKitV3(
-      accounts[0],
-      appRegistry.address,
-      implementation.address
-    );
+    niftyKitV3 = await createNiftyKitV3(accounts[0], appRegistry.address);
   });
 
   it("should be not able to create a diamond without a signer", async function () {
@@ -69,8 +77,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -104,31 +112,13 @@ describe("NiftyKitV3", function () {
     );
   });
 
-  it("should be set new diamond implementation", async function () {
-    expect(await niftyKitV3.diamondImplementation()).to.equal(
-      implementation.address
-    );
-
-    await niftyKitV3.setDiamondImplementation(accounts[1].getAddress());
-
-    expect(await niftyKitV3.diamondImplementation()).to.equal(
-      await accounts[1].getAddress()
-    );
-
-    await niftyKitV3.setDiamondImplementation(implementation.address);
-
-    expect(await niftyKitV3.diamondImplementation()).to.equal(
-      implementation.address
-    );
-  });
-
   it("should not be able to get commission on non-existing collections", async function () {
     const collectionId = "COLLECTION_ID_commission_test";
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -173,8 +163,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -208,8 +198,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -230,22 +220,19 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.name()).to.equals("NAME");
-    expect(await diamond.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     // install apps
-    await diamond["installApp(bytes32)"](ethers.utils.id("drop"));
-    await diamond["installApp(bytes32)"](ethers.utils.id("example"));
+    await base["installApp(bytes32)"](ethers.utils.id("drop"));
+    await base["installApp(bytes32)"](ethers.utils.id("example"));
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await diamond.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await diamond.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -254,17 +241,15 @@ describe("NiftyKitV3", function () {
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await diamond.setBaseURI("foo");
-    expect(await diamond.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
 
-    expect((await diamond.getApp(ethers.utils.id("drop"))).version).to.equals(
+    expect((await base.getApp(ethers.utils.id("drop"))).version).to.equals(1);
+    expect((await base.getApp(ethers.utils.id("example"))).version).to.equals(
       1
     );
     expect(
-      (await diamond.getApp(ethers.utils.id("example"))).version
-    ).to.equals(1);
-    expect(
-      (await diamond.getApp(ethers.utils.id("non-existing"))).version
+      (await base.getApp(ethers.utils.id("non-existing"))).version
     ).to.equals(0);
   });
 
@@ -273,8 +258,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -295,22 +280,19 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.name()).to.equals("NAME");
-    expect(await diamond.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     // install apps
-    await diamond["installApp(bytes32)"](ethers.utils.id("drop"));
-    await diamond["installApp(bytes32)"](ethers.utils.id("example"));
+    await base["installApp(bytes32)"](ethers.utils.id("drop"));
+    await base["installApp(bytes32)"](ethers.utils.id("example"));
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await diamond.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await diamond.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -319,10 +301,10 @@ describe("NiftyKitV3", function () {
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await diamond.setBaseURI("foo");
-    expect(await diamond.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
 
-    await diamond["removeApp(bytes32)"](ethers.utils.id("example"));
+    await base["removeApp(bytes32)"](ethers.utils.id("example"));
 
     await expect(exampleFacet.setFoo("boo")).to.be.revertedWith("");
   });
@@ -332,8 +314,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -354,21 +336,18 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.name()).to.equals("NAME");
-    expect(await diamond.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     // install apps
-    await diamond["installApp(bytes32)"](ethers.utils.id("example"));
+    await base["installApp(bytes32)"](ethers.utils.id("example"));
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await diamond.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await diamond.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -377,8 +356,8 @@ describe("NiftyKitV3", function () {
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await diamond.setBaseURI("foo");
-    expect(await diamond.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
   });
 
   it("should be able to install multiple apps during creation", async function () {
@@ -386,8 +365,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -408,18 +387,15 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.name()).to.equals("NAME");
-    expect(await diamond.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await diamond.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await diamond.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -428,8 +404,8 @@ describe("NiftyKitV3", function () {
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await diamond.setBaseURI("foo");
-    expect(await diamond.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
   });
 
   it("should be able to install an app with initializer", async function () {
@@ -437,8 +413,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -459,12 +435,9 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.name()).to.equals("NAME");
-    expect(await diamond.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -472,10 +445,10 @@ describe("NiftyKitV3", function () {
     );
 
     // install apps
-    await diamond["installApp(bytes32)"](ethers.utils.id("drop"));
+    await base["installApp(bytes32)"](ethers.utils.id("drop"));
 
     // install with initializer
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("initializeExampleFacet", [
         "coo",
@@ -486,18 +459,18 @@ describe("NiftyKitV3", function () {
 
     // must use corresponding facets
     const dropFacet = DropFacet__factory.connect(diamondAddress, accounts[0]);
-    expect(await diamond.totalSupply()).to.equals(0);
+    expect(await base.totalSupply()).to.equals(0);
     await dropFacet.batchAirdrop([1], [await accounts[0].getAddress()]);
-    expect(await diamond.totalSupply()).to.equals(1);
+    expect(await base.totalSupply()).to.equals(1);
 
     await exampleFacet.setFoo("boo");
     expect(await exampleFacet.getFoo()).to.equals("boo");
 
-    await diamond.setBaseURI("foo");
-    expect(await diamond.tokenURI(1)).to.equals("foo1");
+    await base.setBaseURI("foo");
+    expect(await base.tokenURI(1)).to.equals("foo1");
 
     // uninstall app
-    await diamond["removeApp(bytes32,bytes)"](
+    await base["removeApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("finalizeExampleFacet")
     );
@@ -508,8 +481,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -548,8 +521,8 @@ describe("NiftyKitV3", function () {
     const signature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -574,8 +547,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -596,12 +569,9 @@ describe("NiftyKitV3", function () {
     ) as DiamondCreatedEvent;
     const diamondAddress = createdEvent.args[0];
 
-    const diamond = DiamondCollection__factory.connect(
-      diamondAddress,
-      accounts[0]
-    );
-    expect(await diamond.name()).to.equals("NAME");
-    expect(await diamond.symbol()).to.equals("SYMBOL");
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[0]);
+    expect(await base.name()).to.equals("NAME");
+    expect(await base.symbol()).to.equals("SYMBOL");
 
     const exampleFacet = ExampleFacet__factory.connect(
       diamondAddress,
@@ -609,7 +579,7 @@ describe("NiftyKitV3", function () {
     );
 
     // install with initializer
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("initializeExampleFacet", [
         "coo",
@@ -619,8 +589,7 @@ describe("NiftyKitV3", function () {
     expect(await exampleFacet.getFoo()).to.equals("coo");
 
     // uninstall app
-
-    await diamond["removeApp(bytes32,bytes)"](
+    await base["removeApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("finalizeExampleFacet")
     );
@@ -630,7 +599,7 @@ describe("NiftyKitV3", function () {
     );
 
     // install with initializer again
-    await diamond["installApp(bytes32,bytes)"](
+    await base["installApp(bytes32,bytes)"](
       ethers.utils.id("example"),
       exampleFacet.interface.encodeFunctionData("initializeExampleFacet", [
         "coo",
@@ -645,8 +614,8 @@ describe("NiftyKitV3", function () {
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -673,8 +642,8 @@ describe("NiftyKitV3", function () {
     const newSignature = await accounts[2].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [newCollectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [newCollectionId, feeRate, network.config.chainId]
         )
       )
     );
@@ -701,8 +670,8 @@ describe("NiftyKitV3", function () {
     const signature = await accounts[2].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["string", "uint96"],
-          [collectionId, feeRate]
+          ["string", "uint96", "uint256"],
+          [collectionId, feeRate, network.config.chainId]
         )
       )
     );

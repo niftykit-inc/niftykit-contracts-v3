@@ -3,28 +3,27 @@ import { upgrades } from "hardhat";
 import {
   DropFacet__factory,
   EditionFacet__factory,
+  BaseFacet__factory,
   NiftyKitAppRegistry,
   NiftyKitAppRegistry__factory,
-  DiamondCollection__factory,
   NiftyKitV3,
   NiftyKitV3__factory,
   ExampleFacet__factory,
   MockERC20__factory,
   ApeDropFacet__factory,
   MockOperator__factory,
+  OperatorControlsFacet__factory,
+  BlockTokensFacet__factory,
+  RoyaltyControlsFacet__factory,
 } from "../../typechain-types";
 
 export async function createNiftyKitV3(
   signer: Signer,
   appRegistryAddress: string,
-  implementationAddress: string,
   signerAddress?: string
 ) {
   const factory = new NiftyKitV3__factory(signer);
-  const niftyKitV3 = await upgrades.deployProxy(factory, [
-    appRegistryAddress,
-    implementationAddress,
-  ]);
+  const niftyKitV3 = await upgrades.deployProxy(factory, [appRegistryAddress]);
   const res = (await niftyKitV3.deployed()) as NiftyKitV3;
   if (signerAddress) {
     await res.setSigner(signerAddress);
@@ -39,13 +38,6 @@ export async function createNiftyKitAppRegistry(signer: Signer) {
   return res;
 }
 
-export async function createImplementation(signer: Signer) {
-  const factory = new DiamondCollection__factory(signer);
-  const facet = await factory.deploy();
-  const res = await facet.deployed();
-  return res;
-}
-
 export async function createDropFacet(signer: Signer) {
   const factory = new DropFacet__factory(signer);
   const facet = await factory.deploy();
@@ -55,6 +47,27 @@ export async function createDropFacet(signer: Signer) {
 
 export async function createEditionFacet(signer: Signer) {
   const factory = new EditionFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createOperatorControlsFacet(signer: Signer) {
+  const factory = new OperatorControlsFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createBlockTokensFacet(signer: Signer) {
+  const factory = new BlockTokensFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createRoyaltyControlsFacet(signer: Signer) {
+  const factory = new RoyaltyControlsFacet__factory(signer);
   const facet = await factory.deploy();
   const res = await facet.deployed();
   return res;
@@ -76,6 +89,13 @@ export async function createMockERC20(signer: Signer) {
 
 export async function createApeCoinFacet(signer: Signer) {
   const factory = new ApeDropFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createBaseFacet(signer: Signer) {
+  const factory = new BaseFacet__factory(signer);
   const facet = await factory.deploy();
   const res = await facet.deployed();
   return res;

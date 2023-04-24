@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
 import {INiftyKitAppRegistry} from "../interfaces/INiftyKitAppRegistry.sol";
 import {INiftyKitV3} from "../interfaces/INiftyKitV3.sol";
@@ -8,19 +8,19 @@ library BaseStorage {
     enum Transfer {
         AllowAll,
         AllowedOperatorsOnly,
-        BlockTokens,
         BlockAll
     }
-
-    bytes32 private constant STORAGE_SLOT = keccak256("niftykit.base.storage");
-    uint256 public constant ADMIN_ROLE = 1 << 0;
-    uint256 public constant MANAGER_ROLE = 1 << 1;
-    uint256 public constant API_ROLE = 1 << 2;
 
     struct URIEntry {
         bool isValue;
         string tokenURI;
     }
+
+    bytes32 private constant STORAGE_SLOT = keccak256("niftykit.base.storage");
+
+    uint256 public constant ADMIN_ROLE = 1 << 0;
+    uint256 public constant MANAGER_ROLE = 1 << 1;
+    uint256 public constant API_ROLE = 1 << 2;
 
     struct Layout {
         mapping(bytes32 => INiftyKitAppRegistry.App) _apps;
@@ -30,6 +30,7 @@ library BaseStorage {
         bool _operatorFilteringEnabled;
         Transfer _transferStatus;
         INiftyKitV3 _niftyKit;
+        uint8 _baseVersion;
         address _treasury;
         string _baseURI;
     }

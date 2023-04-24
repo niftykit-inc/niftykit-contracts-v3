@@ -7,6 +7,7 @@ import {
   createDropFacet,
   getInterfaceId,
   getSelectors,
+  createBaseFacet,
 } from "./utils/niftykit";
 
 describe("NiftyKitAppRegistry", function () {
@@ -47,7 +48,7 @@ describe("NiftyKitAppRegistry", function () {
         0
       )
     ).to.be.revertedWith(
-      "NiftyKitAppRegistry: Version must be greater than zero"
+      "NiftyKitAppRegistry: Version must be greater than previous"
     );
   });
 
@@ -75,5 +76,23 @@ describe("NiftyKitAppRegistry", function () {
     ).to.be.revertedWith(
       "NiftyKitAppRegistry: Version must be greater than previous"
     );
+  });
+
+  it("should be able to set base app", async function () {
+    const baseFacet = await createBaseFacet(accounts[0]);
+
+    // set base
+    await appRegistry.setBase(
+      baseFacet.address,
+      [
+        "0x80ac58cd", // ERC721
+        "0x2a55205a", // ERC2981
+      ],
+      getSelectors(baseFacet.interface),
+      1
+    );
+
+    const base = await appRegistry.getBase();
+    expect(base.implementation).to.eq(baseFacet.address);
   });
 });
