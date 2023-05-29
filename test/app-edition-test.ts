@@ -244,8 +244,8 @@ describe("EditionFacet", function () {
     const goodSignature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256", "uint256"],
-          [edition.nonce.add(editionId).toString(), network.config.chainId]
+          ["uint256", "uint256", "uint256"],
+          [editionId, edition.nonce, network.config.chainId]
         )
       )
     );
@@ -257,8 +257,8 @@ describe("EditionFacet", function () {
     const badSignature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256", "uint256"],
-          [edition.nonce.add(420).toString(), network.config.chainId]
+          ["uint256", "uint256", "uint256"],
+          [420, edition.nonce, network.config.chainId]
         )
       )
     );
@@ -321,8 +321,8 @@ describe("EditionFacet", function () {
     const goodUpdatedSignature = await accounts[1].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256", "uint256"],
-          [edition.nonce.add(editionId).toString(), network.config.chainId]
+          ["uint256", "uint256", "uint256"],
+          [editionId, edition.nonce, network.config.chainId]
         )
       )
     );
@@ -411,8 +411,8 @@ describe("EditionFacet", function () {
     const goodSignature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256", "uint256"],
-          [edition.nonce.add(editionId).toString(), network.config.chainId]
+          ["uint256", "uint256", "uint256"],
+          [editionId, edition.nonce, network.config.chainId]
         )
       )
     );
@@ -515,8 +515,8 @@ describe("EditionFacet", function () {
     const goodSignature = await accounts[0].signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(
-          ["uint256", "uint256"],
-          [edition.nonce.add(editionId).toString(), network.config.chainId]
+          ["uint256", "uint256", "uint256"],
+          [editionId, edition.nonce, network.config.chainId]
         )
       )
     );

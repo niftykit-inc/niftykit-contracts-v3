@@ -11,14 +11,20 @@
     "build": "tsc -p ./tsconfig.build.json",
     "coverage": "npx hardhat coverage",
     "deploy": "npx hardhat deploy --tags NiftyKit",
+    "upgrade:base": "npx hardhat deploy --tags NiftyKitUpgradeBase",
+    "upgrade:app": "npx hardhat deploy --tags NiftyKitUpgradeApp",
+    "upgrade:niftykit": "npx hardhat deploy --tags NiftyKitUpgrade",
     "deploy:erc20": "npx hardhat deploy --tags ERC20",
-    "verify": "npx hardhat run scripts/verify.ts"
+    "deploy:forwarder": "npx hardhat deploy --tags NiftyKitForwarder",
+    "verify": "npx hardhat run scripts/verify.ts",
+    "interfaceId": "npx hardhat run scripts/generateInterfaceId.ts"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
     "@nomiclabs/hardhat-ethers": "^2.2.2",
     "@nomiclabs/hardhat-etherscan": "^3.1.5",
     "@openzeppelin/contracts": "4.7.3",
-    "@openzeppelin/contracts-upgradeable": "4.7.3",
+    "@openzeppelin/contracts-upgradeable": "4.9.0",
     "@openzeppelin/hardhat-upgrades": "^1.18.1",
     "@solidstate/contracts": "^0.0.54",
     "@typechain/ethers-v5": "^10.2.0",

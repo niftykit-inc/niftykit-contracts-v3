@@ -2,6 +2,19 @@
 pragma solidity ^0.8.19;
 
 interface INiftyKitV3 {
+    struct DiamondArgs {
+        address owner;
+        address admin;
+        address treasury;
+        address royalty;
+        address trustedForwarder;
+        uint16 royaltyBps;
+        string name;
+        string symbol;
+        string baseURI;
+        bytes32[] apps;
+    }
+
     /**
      * @dev Returns app registry address.
      */

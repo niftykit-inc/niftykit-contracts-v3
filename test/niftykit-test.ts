@@ -20,6 +20,7 @@ import {
   createExampleFacet,
   generateSigner,
   createBaseFacet,
+  createUpgradeFacet,
 } from "./utils/niftykit";
 
 describe("NiftyKitV3", function () {
@@ -39,6 +40,7 @@ describe("NiftyKitV3", function () {
     signer = generateSigner();
 
     const exampleFacet = await createExampleFacet(accounts[0]);
+    const upgradeFacet = await createUpgradeFacet(accounts[0]);
 
     // register base
     await appRegistry.setBase(
@@ -66,6 +68,14 @@ describe("NiftyKitV3", function () {
       exampleFacet.address,
       getInterfaceId(exampleFacet.interface),
       getSelectors(exampleFacet.interface),
+      1
+    );
+
+    await appRegistry.registerApp(
+      ethers.utils.id("upgrade"),
+      upgradeFacet.address,
+      getInterfaceId(upgradeFacet.interface),
+      getSelectors(upgradeFacet.interface),
       1
     );
 
@@ -306,7 +316,9 @@ describe("NiftyKitV3", function () {
 
     await base["removeApp(bytes32)"](ethers.utils.id("example"));
 
-    await expect(exampleFacet.setFoo("boo")).to.be.revertedWith("");
+    await expect(exampleFacet.setFoo("boo")).to.be.revertedWith(
+      "Diamond: Function does not exist"
+    );
   });
 
   it("should be able to install an app during creation", async function () {
@@ -379,7 +391,11 @@ describe("NiftyKitV3", function () {
       500,
       "NAME",
       "SYMBOL",
-      [ethers.utils.id("drop"), ethers.utils.id("example")]
+      [
+        ethers.utils.id("drop"),
+        ethers.utils.id("example"),
+        ethers.utils.id("upgrade"),
+      ]
     );
     const createDiamondReceipt = await createDiamondTx.wait();
     const createdEvent = createDiamondReceipt.events?.find(

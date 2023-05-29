@@ -24,6 +24,20 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         bool exists;
     }
 
+    struct CreateDiamondArgs {
+        address owner;
+        address admin;
+        string collectionId;
+        uint96 feeRate;
+        bytes signature;
+        address treasury;
+        address royalty;
+        uint16 royaltyBps;
+        string name;
+        string symbol;
+        bytes32[] apps;
+    }
+
     event DiamondCreated(address indexed diamondAddress, string collectionId);
 
     using AddressUpgradeable for address;
@@ -34,6 +48,8 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
     address private _appRegistry;
     mapping(string => bool) _verifiedCollections;
     mapping(address => Collection) private _collections;
+    string private _baseURI;
+    address private _trustedForwarder;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -77,6 +93,10 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         return _appRegistry;
     }
 
+    function trustedForwarder() external view returns (address) {
+        return _trustedForwarder;
+    }
+
     function treasury() external view returns (address) {
         return _treasury;
     }
@@ -96,6 +116,14 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         _signer = signer;
     }
 
+    function setBaseURI(string calldata baseURI) external onlyOwner {
+        _baseURI = baseURI;
+    }
+
+    function setTrustedForwarder(address forwarder) external onlyOwner {
+        _trustedForwarder = forwarder;
+    }
+
     function setRate(address collection, uint256 rate) external onlyOwner {
         Collection storage _collection = _collections[collection];
         require(_collection.exists, "Does not exist");
@@ -109,6 +137,13 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         require(IERC173(collection).owner() == _msgSender(), "Not the owner");
 
         _collection.feeType = feeType;
+    }
+
+    function getFeeType(address collection) external view returns (FeeType) {
+        Collection storage _collection = _collections[collection];
+        require(_collection.exists, "Does not exist");
+
+        return _collection.feeType;
     }
 
     function createDiamond(
@@ -134,24 +169,65 @@ contract NiftyKitV3 is INiftyKitV3, Initializable, OwnableUpgradeable {
         _verifiedCollections[collectionId_] = true;
 
         DiamondCollection collection = new DiamondCollection(
-            _msgSender(),
-            treasury_,
-            royalty_,
-            royaltyBps_,
-            name_,
-            symbol_,
-            apps_
+            DiamondArgs(
+                _msgSender(),
+                address(0),
+                treasury_,
+                royalty_,
+                _trustedForwarder,
+                royaltyBps_,
+                name_,
+                symbol_,
+                string.concat(_baseURI, collectionId_, "/"),
+                apps_
+            )
         );
 
         address deployed = address(collection);
 
-        _collections[deployed] = Collection(
-            feeRate_,
-            FeeType.Seller,
-            true
-        );
+        _collections[deployed] = Collection(feeRate_, FeeType.Seller, true);
 
         emit DiamondCreated(deployed, collectionId_);
+    }
+
+    function createDiamondWithAdmin(CreateDiamondArgs calldata args) external {
+        require(_signer != address(0), "Signer not set");
+        require(!_verifiedCollections[args.collectionId], "Already created");
+        require(
+            keccak256(
+                abi.encodePacked(
+                    args.owner,
+                    args.admin,
+                    args.collectionId,
+                    args.feeRate,
+                    block.chainid
+                )
+            ).toEthSignedMessageHash().recover(args.signature) == _signer,
+            "Invalid signature"
+        );
+
+        _verifiedCollections[args.collectionId] = true;
+
+        DiamondCollection collection = new DiamondCollection(
+            DiamondArgs(
+                args.owner,
+                args.admin,
+                args.treasury,
+                args.royalty,
+                _trustedForwarder,
+                args.royaltyBps,
+                args.name,
+                args.symbol,
+                string.concat(_baseURI, args.collectionId, "/"),
+                args.apps
+            )
+        );
+
+        address deployed = address(collection);
+
+        _collections[deployed] = Collection(args.feeRate, FeeType.Seller, true);
+
+        emit DiamondCreated(deployed, args.collectionId);
     }
 
     receive() external payable {}

@@ -5,13 +5,12 @@ import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Addr
 import {MerkleProofUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 import {ECDSAUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import {ERC721AStorage} from "erc721a-upgradeable/contracts/ERC721AStorage.sol";
-import {InternalERC721AUpgradeable} from "../../internals/InternalERC721AUpgradeable.sol";
-import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
+import {AppFacet} from "../../internals/AppFacet.sol";
 import {INiftyKitV3} from "../../interfaces/INiftyKitV3.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
 import {EditionStorage} from "./EditionStorage.sol";
 
-contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
+contract EditionFacet is AppFacet {
     event EditionCreated(uint256 indexed editionId);
     event EditionMinted(
         address indexed to,
@@ -42,7 +41,7 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
             maxPerWallet: maxPerWallet,
             maxPerMint: maxPerMint,
             nonce: 0,
-            signer: msg.sender,
+            signer: _msgSenderERC721A(),
             active: false
         });
 
@@ -214,7 +213,7 @@ contract EditionFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
     ) internal view {
         require(
             keccak256(
-                abi.encodePacked(editionId + edition.nonce, block.chainid)
+                abi.encodePacked(editionId, edition.nonce, block.chainid)
             ).toEthSignedMessageHash().recover(signature) == edition.signer,
             "Invalid signature"
         );

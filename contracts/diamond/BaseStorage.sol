@@ -33,6 +33,8 @@ library BaseStorage {
         uint8 _baseVersion;
         address _treasury;
         string _baseURI;
+        address _mintSigner;
+        address _trustedForwarder;
     }
 
     function layout() internal pure returns (Layout storage ds) {

@@ -1,20 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {InternalERC721AUpgradeable} from "../../internals/InternalERC721AUpgradeable.sol";
-import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
+import {AppFacet} from "../../internals/AppFacet.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
 import {ExampleStorage} from "./ExampleStorage.sol";
 
-contract ExampleFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
-    function initializeExampleFacet(string memory foo_) public onlyOwner {
+contract ExampleFacet is AppFacet {
+    function initializeExampleFacet(
+        string memory foo_
+    ) public onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         require(!ExampleStorage.layout()._initialized, "already initialized");
 
         ExampleStorage.layout()._isFoo = foo_;
         ExampleStorage.layout()._initialized = true;
     }
 
-    function finalizeExampleFacet() public onlyOwner {
+    function finalizeExampleFacet()
+        public
+        onlyRolesOrOwner(BaseStorage.ADMIN_ROLE)
+    {
         require(ExampleStorage.layout()._initialized, "not initialized");
 
         ExampleStorage.layout()._initialized = false;

@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 import {ERC2981Storage} from "@solidstate/contracts/token/common/ERC2981/ERC2981Storage.sol";
-import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
+import {AppFacet} from "../../internals/AppFacet.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
 
-contract RoyaltyControlsFacet is InternalOwnableRoles {
+contract RoyaltyControlsFacet is AppFacet {
     function setDefaultRoyalty(
         address receiver,
         uint16 feeNumerator
