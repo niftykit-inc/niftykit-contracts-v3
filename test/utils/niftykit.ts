@@ -15,18 +15,35 @@ import {
   OperatorControlsFacet__factory,
   BlockTokensFacet__factory,
   RoyaltyControlsFacet__factory,
+  ReferralFacet__factory,
+  UpgradeFacet__factory,
+  ExampleFacetV2__factory,
+  OnboardingFacet__factory,
+  NiftyKitForwarder__factory,
+  NiftyKitForwarder,
 } from "../../typechain-types";
+
+export async function createNiftyKitForwarder(signer: Signer) {
+  const factory = new NiftyKitForwarder__factory(signer);
+  const niftyKitV3 = await upgrades.deployProxy(factory, []);
+  const res = (await niftyKitV3.deployed()) as NiftyKitForwarder;
+  return res;
+}
 
 export async function createNiftyKitV3(
   signer: Signer,
   appRegistryAddress: string,
-  signerAddress?: string
+  signerAddress?: string,
+  trustedForwarderAddress?: string
 ) {
   const factory = new NiftyKitV3__factory(signer);
   const niftyKitV3 = await upgrades.deployProxy(factory, [appRegistryAddress]);
   const res = (await niftyKitV3.deployed()) as NiftyKitV3;
   if (signerAddress) {
     await res.setSigner(signerAddress);
+  }
+  if (trustedForwarderAddress) {
+    await res.setTrustedForwarder(trustedForwarderAddress);
   }
   return res;
 }
@@ -80,6 +97,20 @@ export async function createExampleFacet(signer: Signer) {
   return res;
 }
 
+export async function createExampleV2Facet(signer: Signer) {
+  const factory = new ExampleFacetV2__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createUpgradeFacet(signer: Signer) {
+  const factory = new UpgradeFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
 export async function createMockERC20(signer: Signer) {
   const factory = new MockERC20__factory(signer);
   const mockERC20 = await factory.deploy();
@@ -89,6 +120,20 @@ export async function createMockERC20(signer: Signer) {
 
 export async function createApeCoinFacet(signer: Signer) {
   const factory = new ApeDropFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createReferralFacet(signer: Signer) {
+  const factory = new ReferralFacet__factory(signer);
+  const facet = await factory.deploy();
+  const res = await facet.deployed();
+  return res;
+}
+
+export async function createOnboardingFacet(signer: Signer) {
+  const factory = new OnboardingFacet__factory(signer);
   const facet = await factory.deploy();
   const res = await facet.deployed();
   return res;

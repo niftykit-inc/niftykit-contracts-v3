@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 import {OperatorFilterer} from "closedsea/src/OperatorFilterer.sol";
-import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
+import {AppFacet} from "../../internals/AppFacet.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
 
-contract OperatorControlsFacet is OperatorFilterer, InternalOwnableRoles {
+contract OperatorControlsFacet is OperatorFilterer, AppFacet {
     function setTransferStatus(
         BaseStorage.Transfer status
     ) external onlyRolesOrOwner(BaseStorage.MANAGER_ROLE) {

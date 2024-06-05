@@ -8,15 +8,7 @@ import {LibDiamond} from "../libraries/LibDiamond.sol";
 import {BaseStorage} from "./BaseStorage.sol";
 
 contract DiamondCollection {
-    constructor(
-        address owner,
-        address treasury,
-        address royalty,
-        uint16 royaltyBps,
-        string memory name,
-        string memory symbol,
-        bytes32[] memory apps
-    ) {
+    constructor(INiftyKitV3.DiamondArgs memory args) {
         BaseStorage.Layout storage layout = BaseStorage.layout();
         layout._niftyKit = INiftyKitV3(msg.sender);
         INiftyKitAppRegistry registry = INiftyKitAppRegistry(
@@ -24,24 +16,27 @@ contract DiamondCollection {
         );
         INiftyKitAppRegistry.Base memory base = registry.getBase();
         IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](
-            apps.length + 1
+            args.apps.length + 1
         );
 
-        layout._treasury = treasury;
+        layout._treasury = args.treasury;
         layout._baseVersion = base.version;
-        facetCuts = _appFacets(facetCuts, layout, registry, apps);
+        layout._baseURI = args.baseURI;
+        layout._trustedForwarder = args.trustedForwarder;
+        facetCuts = _appFacets(facetCuts, layout, registry, args.apps);
         facetCuts = _baseFacet(facetCuts, base);
 
         LibDiamond.diamondCut(
             facetCuts,
             base.implementation,
             abi.encodeWithSignature(
-                "_initialize(address,string,string,address,uint16)",
-                owner,
-                name,
-                symbol,
-                royalty,
-                royaltyBps
+                "_initialize(address,address,string,string,address,uint16)",
+                args.owner,
+                args.admin,
+                args.name,
+                args.symbol,
+                args.royalty,
+                args.royaltyBps
             )
         );
     }

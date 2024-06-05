@@ -29,7 +29,7 @@ contract BaseFacet is
             status == BaseStorage.Transfer.BlockAll ||
             (status == BaseStorage.Transfer.AllowedOperatorsOnly &&
                 !layout._allowedOperators[from] &&
-                from != msg.sender) ||
+                from != _msgSenderERC721A()) ||
             (layout._blockedTokenIds[tokenId])
         ) {
             revert("Transfers not allowed");
@@ -41,6 +41,7 @@ contract BaseFacet is
 
     function _initialize(
         address owner_,
+        address admin_,
         string calldata name_,
         string calldata symbol_,
         address royalty_,
@@ -48,6 +49,14 @@ contract BaseFacet is
     ) external initializerERC721A {
         __ERC721A_init(name_, symbol_);
         _initializeOwner(owner_);
+
+        if (admin_ != address(0)) {
+            BaseStorage.layout()._mintSigner = admin_;
+            _grantRoles(
+                admin_,
+                BaseStorage.ADMIN_ROLE + BaseStorage.MANAGER_ROLE
+            );
+        }
 
         ERC2981Storage.Layout storage layout = ERC2981Storage.layout();
         layout.defaultRoyaltyBPS = royaltyBps_;
@@ -60,11 +69,13 @@ contract BaseFacet is
         BaseStorage.layout()._baseURI = newBaseURI;
     }
 
-    function setTreasury(address newTreasury) external onlyOwner {
+    function setTreasury(
+        address newTreasury
+    ) external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         BaseStorage.layout()._treasury = newTreasury;
     }
 
-    function withdraw() external onlyOwner {
+    function withdraw() external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         BaseStorage.Layout storage layout = BaseStorage.layout();
         uint256 balance = address(this).balance;
         require(balance > 0, "0 balance");
@@ -72,20 +83,46 @@ contract BaseFacet is
         AddressUpgradeable.sendValue(payable(layout._treasury), balance);
     }
 
-    function installApp(bytes32 name) external onlyOwner {
+    function setMintSigner(
+        address signer_
+    ) external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
+        BaseStorage.layout()._mintSigner = signer_;
+    }
+
+    function getMintSigner() external view returns (address) {
+        return BaseStorage.layout()._mintSigner;
+    }
+
+    function installApp(
+        bytes32 name
+    ) external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         _installApp(name, address(0), "");
     }
 
-    function installApp(bytes32 name, bytes memory data) external onlyOwner {
+    function installApp(
+        bytes32 name,
+        bytes memory data
+    ) external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         _installApp(name, address(this), data);
     }
 
-    function removeApp(bytes32 name) external onlyOwner {
+    function removeApp(
+        bytes32 name
+    ) external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         _removeApp(name, address(0), "");
     }
 
-    function removeApp(bytes32 name, bytes memory data) external onlyOwner {
+    function removeApp(
+        bytes32 name,
+        bytes memory data
+    ) external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         _removeApp(name, address(this), data);
+    }
+
+    function setTrustedForwarder(
+        address trustedForwarder
+    ) external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
+        BaseStorage.layout()._trustedForwarder = trustedForwarder;
     }
 
     function isApprovedForAll(
@@ -263,6 +300,40 @@ contract BaseFacet is
         LibDiamond.initializeDiamondCut(init, data);
         LibDiamond.diamondCut(facetCuts, address(0), "");
         delete layout._apps[name];
+    }
+
+    /**
+     * Override this to use the trusted forwarder.
+     */
+    function _msgSenderERC721A()
+        internal
+        view
+        override
+        returns (address sender)
+    {
+        if (_isTrustedForwarder(msg.sender)) {
+            // The assembly code is more direct than the Solidity version using `abi.decode`.
+            /// @solidity memory-safe-assembly
+            assembly {
+                sender := shr(96, calldataload(sub(calldatasize(), 20)))
+            }
+        } else {
+            return super._msgSenderERC721A();
+        }
+    }
+
+    function _msgDataERC721A() internal view virtual returns (bytes calldata) {
+        if (_isTrustedForwarder(msg.sender)) {
+            return msg.data[:msg.data.length - 20];
+        } else {
+            return msg.data;
+        }
+    }
+
+    function _isTrustedForwarder(
+        address forwarder
+    ) internal view returns (bool) {
+        return BaseStorage.layout()._trustedForwarder == forwarder;
     }
 
     function supportsInterface(

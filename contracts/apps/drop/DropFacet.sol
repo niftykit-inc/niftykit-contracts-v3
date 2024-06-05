@@ -4,13 +4,12 @@ pragma solidity ^0.8.19;
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import {MerkleProofUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 import {ERC721AStorage} from "erc721a-upgradeable/contracts/ERC721AStorage.sol";
-import {InternalERC721AUpgradeable} from "../../internals/InternalERC721AUpgradeable.sol";
-import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
+import {AppFacet} from "../../internals/AppFacet.sol";
 import {INiftyKitV3} from "../../interfaces/INiftyKitV3.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
 import {DropStorage} from "./DropStorage.sol";
 
-contract DropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
+contract DropFacet is AppFacet {
     using AddressUpgradeable for address;
 
     modifier onlyMintable(uint64 quantity) {
@@ -165,12 +164,5 @@ contract DropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
 
         _setAux(to, _getAux(to) + quantity);
         _mint(to, quantity);
-    }
-
-    /**
-     * Need this for ERC721A, when we call `_totalSupply()` this is read from code.
-     */
-    function _startTokenId() internal pure override returns (uint256) {
-        return 1;
     }
 }

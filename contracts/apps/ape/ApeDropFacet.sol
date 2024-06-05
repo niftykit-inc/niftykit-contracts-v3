@@ -6,13 +6,12 @@ import {MerkleProofUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {ERC721AStorage} from "erc721a-upgradeable/contracts/ERC721AStorage.sol";
-import {InternalERC721AUpgradeable} from "../../internals/InternalERC721AUpgradeable.sol";
-import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
+import {AppFacet} from "../../internals/AppFacet.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
 import {DropStorage} from "../drop/DropStorage.sol";
 import {ApeDropStorage} from "./ApeDropStorage.sol";
 
-contract ApeDropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
+contract ApeDropFacet is AppFacet {
     using AddressUpgradeable for address;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -29,7 +28,9 @@ contract ApeDropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         _;
     }
 
-    function initializeApeDrop(address tokenAddress_) public onlyOwner {
+    function initializeApeDrop(
+        address tokenAddress_
+    ) public onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         require(
             !ApeDropStorage.layout()._apeInitialized,
             "already initialized"
@@ -41,7 +42,7 @@ contract ApeDropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         ApeDropStorage.layout()._apeInitialized = true;
     }
 
-    function finalizeApeDrop() public onlyOwner {
+    function finalizeApeDrop() public onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         require(ApeDropStorage.layout()._apeInitialized, "not initialized");
 
         ApeDropStorage.layout()._apeInitialized = false;
@@ -134,12 +135,12 @@ contract ApeDropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         return ApeDropStorage.layout()._apeRevenue;
     }
 
-    function apeWithdraw() external onlyOwner {
+    function apeWithdraw() external onlyRolesOrOwner(BaseStorage.ADMIN_ROLE) {
         ApeDropStorage.Layout storage layout = ApeDropStorage.layout();
         uint256 balance = layout._apeCoinContract.balanceOf(address(this));
         require(balance > 0, "0 balance");
 
-        layout._apeCoinContract.safeTransfer(msg.sender, balance);
+        layout._apeCoinContract.safeTransfer(_msgSenderERC721A(), balance);
     }
 
     function _apePurchaseMint(uint64 quantity, address to) internal {
@@ -153,12 +154,5 @@ contract ApeDropFacet is InternalOwnableRoles, InternalERC721AUpgradeable {
         layout._apeCoinContract.safeTransferFrom(to, address(this), total);
         _setAux(to, _getAux(to) + quantity);
         _mint(to, quantity);
-    }
-
-    /**
-     * Need this for ERC721A, when we call `_totalSupply()` this is read from code.
-     */
-    function _startTokenId() internal pure override returns (uint256) {
-        return 1;
     }
 }

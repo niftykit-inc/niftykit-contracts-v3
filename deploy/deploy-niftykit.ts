@@ -38,6 +38,10 @@ function saveArtifacts(
 
 const deployFn = async function (hre: HardhatRuntimeEnvironment) {
   await hre.run("compile");
+  const signer = process.env.SIGNER;
+  if (!signer || !hre.ethers.utils.isAddress(signer)) {
+    throw new Error("SIGNER env variable is not set or is not a valid address");
+  }
 
   const [deployer] = await hre.ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
@@ -109,7 +113,7 @@ const deployFn = async function (hre: HardhatRuntimeEnvironment) {
     deployer
   );
 
-  await niftyKit.setSigner("0x7556fcaD2d852bacFE3a7AAc0614018BBe28dEB0");
+  await niftyKit.setSigner(signer);
 
   // deploy apps and add them to registry
   const appRegistry = NiftyKitAppRegistry__factory.connect(
@@ -211,34 +215,38 @@ const deployFn = async function (hre: HardhatRuntimeEnvironment) {
 
   await registerEditionAppTx.wait();
 
-  console.log("Deploying ApeDropFacet...");
-  const apeDropFactory = new ApeDropFacet__factory(deployer);
-  const apeDropFacet = await apeDropFactory.deploy();
-  await apeDropFacet.deployed();
-  console.log("ApeDropFacet address: ", apeDropFacet.address);
-  console.log("Waiting for verification...");
-  await apeDropFacet.deployTransaction.wait(5);
-  try {
-    console.log("verifying ApeDropFacet...");
-    await hre.run("verify:verify", {
-      address: apeDropFacet.address,
-      constructorArguments: [],
-    });
-  } catch (err) {
-    console.log("error while verifying", err);
+  const network = hre.network.name;
+  const mainnet = ["mainnet", "goerli"];
+  if (mainnet.includes(network)) {
+    console.log("Deploying ApeDropFacet...");
+    const apeDropFactory = new ApeDropFacet__factory(deployer);
+    const apeDropFacet = await apeDropFactory.deploy();
+    await apeDropFacet.deployed();
+    console.log("ApeDropFacet address: ", apeDropFacet.address);
+    console.log("Waiting for verification...");
+    await apeDropFacet.deployTransaction.wait(5);
+    try {
+      console.log("verifying ApeDropFacet...");
+      await hre.run("verify:verify", {
+        address: apeDropFacet.address,
+        constructorArguments: [],
+      });
+    } catch (err) {
+      console.log("error while verifying", err);
+    }
+
+    // register app
+    console.log("Registering app...");
+    const registerApeAppTx = await appRegistry.registerApp(
+      ethers.utils.id("ape"),
+      apeDropFacet.address,
+      getInterfaceId(apeDropFacet.interface),
+      getSelectors(apeDropFacet.interface),
+      1
+    );
+
+    await registerApeAppTx.wait();
   }
-
-  // register app
-  console.log("Registering app...");
-  const registerApeAppTx = await appRegistry.registerApp(
-    ethers.utils.id("ape"),
-    apeDropFacet.address,
-    getInterfaceId(apeDropFacet.interface),
-    getSelectors(apeDropFacet.interface),
-    1
-  );
-
-  await registerApeAppTx.wait();
 
   console.log("Deploying BlockTokensFacet...");
   const blockTokensFactory = new BlockTokensFacet__factory(deployer);

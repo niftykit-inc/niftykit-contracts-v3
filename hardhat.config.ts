@@ -1,8 +1,8 @@
 import * as dotenv from "dotenv";
 
 import { HardhatUserConfig, task } from "hardhat/config";
+import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomiclabs/hardhat-etherscan";
-import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
@@ -29,8 +29,14 @@ const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.19",
     settings: {
+      // viaIR: true,
       optimizer: {
         enabled: true,
+        // details: {
+        //   yulDetails: {
+        //     optimizerSteps: "u",
+        //   },
+        // },
       },
     },
   },
@@ -70,6 +76,10 @@ const config: HardhatUserConfig = {
       url: "https://arb-goerli.g.alchemy.com/v2/K_kUP-i_aujVzmi_VJSMSzSCfzU9qEHD",
       accounts: process.env.ACCOUNT ? [process.env.ACCOUNT] : undefined,
     },
+    nova: {
+      url: "https://solemn-quaint-arm.nova-mainnet.discover.quiknode.pro/d5521f20cc5b7f05718f4cf6a8a46cfebd4aa9ff",
+      accounts: process.env.ACCOUNT ? [process.env.ACCOUNT] : undefined,
+    },
   },
   etherscan: {
     apiKey: {
@@ -80,10 +90,22 @@ const config: HardhatUserConfig = {
       optimisticEthereum: "MNUQ5YNPERZQJY799A2MATQCJJUI5NCKAP",
       optimisticGoerli: "MNUQ5YNPERZQJY799A2MATQCJJUI5NCKAP",
       arbitrumOne: "F77Y269K4K8YBGCMSCWVAS36WJ9WCD8879",
+      nova: "QX3PSYZ7XYKV1ZVMY7MTA9C45E1MFE8712",
       arbitrumGoerli: "F77Y269K4K8YBGCMSCWVAS36WJ9WCD8879",
     },
+    customChains: [
+      {
+        network: "nova",
+        chainId: 42170,
+        urls: {
+          apiURL: "https://api-nova.arbiscan.io/api",
+          browserURL: "https://nova.arbiscan.io",
+        },
+      },
+    ],
   },
   gasReporter: {
+    enabled: !!process.env.REPORT_GAS,
     currency: "USD",
     coinmarketcap: "9ffa732d-998c-4c96-8966-958d38557ba5",
   },

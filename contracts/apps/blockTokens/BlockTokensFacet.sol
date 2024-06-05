@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {InternalOwnableRoles} from "../../internals/InternalOwnableRoles.sol";
+import {AppFacet} from "../../internals/AppFacet.sol";
 import {BaseStorage} from "../../diamond/BaseStorage.sol";
 
-contract BlockTokensFacet is InternalOwnableRoles {
+contract BlockTokensFacet is AppFacet {
     function setBlockedTokenId(
         uint256 tokenId,
         bool isBlocked

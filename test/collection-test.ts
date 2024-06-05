@@ -146,6 +146,63 @@ describe("DiamondCollection", function () {
     expect(await base.treasury()).to.equal(await accounts[1].getAddress());
   });
 
+  it("should be set treasury as admin", async function () {
+    const collectionId = "COLLECTION_ID_treasury_test";
+    const signature = await signer.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ["address", "address", "string", "uint96", "uint256"],
+          [
+            await accounts[1].getAddress(),
+            await accounts[2].getAddress(),
+            collectionId,
+            feeRate,
+            network.config.chainId,
+          ]
+        )
+      )
+    );
+    const createDiamondTx = await niftyKitV3.createDiamondWithAdmin({
+      owner: await accounts[1].getAddress(),
+      admin: await accounts[2].getAddress(),
+      collectionId,
+      feeRate,
+      signature,
+      treasury: await accounts[0].getAddress(),
+      royalty: await accounts[0].getAddress(),
+      royaltyBps: 500,
+      name: "NAME",
+      symbol: "SYMBOL",
+      apps: [ethers.utils.id("drop")],
+    });
+    const createDiamondReceipt = await createDiamondTx.wait();
+    const createdEvent = createDiamondReceipt.events?.find(
+      (event) => event.event === "DiamondCreated"
+    ) as DiamondCreatedEvent;
+    const diamondAddress = createdEvent.args[0];
+    const base = BaseFacet__factory.connect(diamondAddress, accounts[1]);
+
+    expect(await base.treasury()).to.equal(await accounts[0].getAddress());
+
+    await base.setTreasury(accounts[2].getAddress());
+
+    expect(await base.treasury()).to.equal(await accounts[2].getAddress());
+
+    // caller -> accounts[0]
+    // owner -> accounts[1]
+    // admin -> accounts[2]
+    // signer - > accounts[2]
+
+    // check owner
+    expect(await base.owner()).to.equal(await accounts[1].getAddress());
+
+    // check admin + manager
+    expect(await base.rolesOf(accounts[2].getAddress())).to.equal(1 + 2);
+
+    // check signer
+    expect(await base.getMintSigner()).to.equal(await accounts[2].getAddress());
+  });
+
   it("should be able to withdraw after sale", async function () {
     const collectionId = "COLLECTION_ID_3";
     const signature = await signer.signMessage(
@@ -202,7 +259,7 @@ describe("DiamondCollection", function () {
     await base.withdraw();
   });
 
-  it("should be override tokenURI", async function () {
+  it("should be able to override tokenURI", async function () {
     const collectionId = "COLLECTION_ID_override_tokenURI";
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
@@ -254,19 +311,21 @@ describe("DiamondCollection", function () {
 
     expect(await dropCollection.dropRevenue()).to.equal(salesParam[3].mul(2));
 
-    expect(await base.tokenURI(1)).to.equal("");
+    expect(await base.tokenURI(1)).to.equal(
+      "COLLECTION_ID_override_tokenURI/1"
+    );
 
     await base.setBaseURI("foo");
     expect(await base.tokenURI(1)).to.equal("foo1");
 
     expect(await base.tokenURI(2)).to.equal("foo2");
 
-    await expect(base.tokenURI(3)).to.be.revertedWith(
+    await expect(base.tokenURI(3)).to.be.rejectedWith(
       "URIQueryForNonexistentToken()"
     );
   });
 
-  it("should be set operator filter", async function () {
+  it("should be able to set operator filter", async function () {
     const collectionId = "COLLECTION_ID_operator_filter";
     const signature = await signer.signMessage(
       ethers.utils.arrayify(
@@ -304,7 +363,7 @@ describe("DiamondCollection", function () {
     expect(await operatorControls.operatorFilteringEnabled()).to.be.false;
   });
 
-  it("should be set transfer status: block all", async function () {
+  it("should be able to set transfer status: block all", async function () {
     const collectionId = "COLLECTION_ID_transfer_status_block_all";
     const mockOperator = await createMockOperator(accounts[0]);
     const signature = await signer.signMessage(
@@ -422,7 +481,7 @@ describe("DiamondCollection", function () {
       );
   });
 
-  it("should be set transfer status: allowed operators only", async function () {
+  it("should be able to set transfer status: allowed operators only", async function () {
     const collectionId = "COLLECTION_ID_allowed_operators";
     const mockOperator = await createMockOperator(accounts[0]);
     const signature = await signer.signMessage(
